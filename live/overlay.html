@@ -142,7 +142,7 @@ function addVisitor(p, instant){
 }
 function removeVisitor(id){ visitors.delete(id); reseat(); }
 /* crown-gift award walk: the giver climbs the front stairs to the singer, the award shows and auto-hides, he comes back down front-facing and returns to his seat cheering */
-function startAward(v){ awardBusy=true; v.state='award'; v.aw={ ph:'up1', t:0, frame:0, ft:0 }; }
+function startAward(v){ awardBusy=true; awardSince=performance.now(); v.state='award'; v.aw={ ph:'up1', t:0, frame:0, ft:0 }; }
 const awardScale=y=>{ const cols=(GRID[cap]||GRID[24])[0]; const fl=.60*(6/cols)**.75*1.05*260/252; if (y>=FLOOR.yTop) return fl; const k=Math.max(0,Math.min(1,(y-950)/(FLOOR.yTop-950))); return .68+(fl-.68)*k; };   // on the floor he is exactly the crowd's uniform size
 
 /* ======================= HUD ======================= */
@@ -156,7 +156,8 @@ function renderMerit(){
 }
 setInterval(()=>{ const s=Math.floor((Date.now()-startedAt)/1000); document.getElementById('timer').textContent=[s/3600,s/60%60,s%60].map(x=>String(Math.floor(x)).padStart(2,'0')).join(':'); },1000);
 let giftHide=null;
-let awardBusy=false;   // a giver award walk is in progress
+let awardBusy=false, awardSince=0;   // a giver award walk is in progress
+const awardQueue=[];   // crown givers waiting for their award walk (starts once they are seated)
 function showGift(m){
   document.getElementById('giftWho').textContent = m.name;
   document.getElementById('giftWhat').textContent = `${m.giftName}${m.count>1?' ×'+m.count:''} ပို့ပြီး အားပေးတယ် · စုစုပေါင်း ${m.total} ✦`;
@@ -242,10 +243,10 @@ function connect(){
         visitors.clear(); order=[]; layout(m.cap); for (const p of m.viewers) addVisitor(p,true); updateCount(); renderMerit(); break;
       case 'settings': Object.assign(settings,m.settings); applySettings(); if (m.cap!==cap){ layout(m.cap); updateCount(); } break;
       case 'join': if (m.cap!==cap) layout(m.cap); addVisitor(m.v, m.v.demo && visitors.size>8); updateCount(); break;
-      case 'leave': removeVisitor(m.id); updateCount(); renderMerit(); break;
+      case 'leave': { const lv=visitors.get(m.id); if (lv && lv.state==='award') awardBusy=false; removeVisitor(m.id); updateCount(); renderMerit(); } break;
       case 'skin': { const v=visitors.get(m.id); if(v){ if(m.skin==='woman'||m.skin==='man') v.skin=m.skin; v.glow=.8; if(v.state!=='sit'){ v.state='sit'; v.frame=7; } } } break;
       case 'chat': { const v=visitors.get(m.id); if(v){ v.bubble={text:m.text, until:performance.now()+6000}; v.bow=.6; } } break;
-      case 'gift': { const v=visitors.get(m.id); if(v){ v.coins=m.total; giftFx(v,m.tier); } renderMerit(); showGift(m); if (m.tier>=3 && v && !awardBusy && v.state==='sit') startAward(v); } break;
+      case 'gift': { const v=visitors.get(m.id); if(v){ v.coins=m.total; giftFx(v,m.tier); } renderMerit(); showGift(m); if (m.tier>=3 && v && !awardQueue.includes(m.id)) awardQueue.push(m.id); } break;
       case 'like': { const v=visitors.get(m.id); if(v) hearts(v,m.n); } break;
       case 'tts': queueTTS(m.url); break;
       case 'chant': showChant(m.text); bell(); break;
@@ -315,6 +316,9 @@ function frame(now){
   ctx.clearRect(0,0,1080,1920);
   if (A.hall.naturalWidth) ctx.drawImage(A.hall,0,0,1080,1920);
   // light: LED ring glow on the stage wall, cycling colour wash, spotlight beams, stage haze
+  // award queue: start the walk as soon as the giver is seated; a stuck award never blocks later ones
+  if (!awardBusy && awardQueue.length){ const qv = visitors.get(awardQueue[0]); if (!qv) awardQueue.shift(); else if (qv.state==='sit'){ awardQueue.shift(); startAward(qv); } }
+  if (awardBusy && performance.now()-awardSince > 25000){ const stuck = [...visitors.values()].find(x=>x.state==='award'); if (stuck){ stuck.state='sit'; stuck.x=stuck.seat?.x||stuck.x; stuck.y=stuck.seat?.y||stuck.y; stuck.settle=0; } awardBusy=false; }
   haloPulse=Math.max(0,haloPulse-dt*.4);
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.2+.08*Math.sin(t*1.2)+haloPulse*.5; ctx.strokeStyle='#ff5ad2'; ctx.lineWidth=13; ctx.shadowColor='#ff2e88'; ctx.shadowBlur=34; ctx.beginPath(); ctx.ellipse(495,905,200+haloPulse*26,100+haloPulse*13,0,0,6.29); ctx.stroke(); ctx.restore();
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.05+.035*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle=`hsl(${(t*36)%360} 90% 65%)`; ctx.fillRect(0,0,1080,1150); ctx.restore();
