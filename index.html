@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="စတိတ်ရှိုး Live: နာမည်ရေးပြီး ပရိသတ်ခုံမှာ ဝင်ထိုင်၊ လက်ဆောင်ပို့၊ သီချင်းနားထောင်ရင်း အားပေးလို့ရတဲ့ ပွဲတော်။">
+<meta name="theme-color" content="#08040f">
+<meta property="og:title" content="စတိတ်ရှိုး · Stage Show Live">
+<meta property="og:image" content="/assets/hall.jpg">
+<title>စတိတ်ရှိုး · Stage Show Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Noto+Serif+Myanmar:wght@600;700&display=swap">
+<style>
+/* Layout: one 9:16 stage (the painted concert stage) letterboxed in the viewport; audience sprites drawn on a canvas over it; HUD in the stage's corners. Dark by design (night stage show). */
+:root{
+  --bg:#08040f; --fg:#f7eefc; --muted:#b8a6cc; --gold:#ffd23f; --pink:#ff2e88; --cyan:#22d3ee; --red:#ff2e88;
+  --panel:rgba(18,8,30,.86); --line:rgba(255,120,190,.42);
+  --display:"Noto Serif Myanmar","Noto Sans Myanmar",serif;
+  --body:"Noto Sans Myanmar","Pyidaungsu",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden;
+  padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+#wrap{position:fixed;inset:0;display:grid;place-items:center;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+#stage{position:relative;aspect-ratio:9/16;height:100%;max-width:100%;max-height:100%;overflow:hidden;background:#000;box-shadow:0 0 80px rgba(0,0,0,.8)}
+@media (max-aspect-ratio:9/16){#stage{width:100%;height:auto}}
+#stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+/* HUD lives inside the stage so it matches the 9:16 stream frame */
+.hud{position:absolute;z-index:5;pointer-events:none;display:flex;gap:8px;align-items:center}
+.hud *{pointer-events:auto}
+#top{top:10px;left:10px;right:10px;justify-content:space-between;flex-wrap:wrap}
+#bottom{bottom:10px;left:10px;right:10px;justify-content:space-between;flex-wrap:wrap}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;backdrop-filter:blur(6px);display:inline-flex;gap:6px;align-items:center;min-width:0}
+.chip b{font-family:var(--display);font-weight:600;color:var(--gold)}
+.n{font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:12px;backdrop-filter:blur(6px)}
+.btn:hover{border-color:var(--gold)}
+.btn:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.btn.primary{background:linear-gradient(135deg,#ff2e88,#7c3aed);border-color:#ff71ab;color:#fff;padding:11px 20px;font-size:15px;font-weight:600}
+.btn.gift{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;border-radius:12px;min-width:64px}
+.btn.gift small{color:var(--muted);font-size:10px;letter-spacing:.04em}
+.btn.gift b{font-family:var(--display);color:var(--gold);font-size:13px}
+#gifts{display:flex;gap:6px}
+/* merit board */
+#board{position:absolute;right:10px;top:52px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:150px;font-size:12px;backdrop-filter:blur(6px)}
+#board h3{margin:0 0 4px;font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-weight:600}
+#board ol{margin:0;padding-left:18px;display:grid;gap:2px}
+#board li span{float:right;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:8px}
+/* chat feed (left, like a live) */
+#feed{position:absolute;left:10px;bottom:74px;z-index:4;width:48%;max-width:230px;display:flex;flex-direction:column;gap:5px;pointer-events:none;
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 25%);mask-image:linear-gradient(to bottom,transparent,#000 25%)}
+.msg{background:rgba(0,0,0,.45);border-radius:10px;padding:5px 9px;font-size:12px;line-height:1.35;max-width:100%;min-width:0;overflow-wrap:anywhere;animation:in .35s ease-out}
+.msg b{color:var(--gold);font-weight:600}
+.msg.gift{background:rgba(255,46,136,.45);border:1px solid rgba(255,210,63,.55)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+/* entry */
+#gate{position:absolute;inset:0;z-index:10;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,rgba(255,46,136,.20),rgba(8,4,15,.82) 62%),radial-gradient(ellipse at 82% 82%,rgba(34,211,238,.13),transparent 55%);padding:16px}
+#gate form{width:min(100%,360px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px 20px;backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:13px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#gate h1{font-family:var(--display);font-weight:600;font-size:25px;margin:0;color:var(--gold);text-wrap:balance}
+#gate p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input{font:inherit;font-size:16px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--fg);width:100%;box-sizing:border-box}
+input::placeholder{color:#8d7ba6}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hint{font-size:11px;color:var(--muted)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:5px 10px;font-size:12px}
+.seg button[aria-pressed="true"]{background:linear-gradient(135deg,#ff2e88,#7c3aed);border-color:#ff71ab;color:#fff}
+#toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-family:var(--display);color:var(--gold);font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88%;text-align:center}
+#toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast,.msg{transition:none;animation:none}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}*{box-sizing:border-box}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div id="wrap"><div id="stage">
+  <canvas id="c"></canvas>
+  <div id="top" class="hud">
+    <span class="chip" id="me" hidden><b id="meName"></b><span class="hint">ပွဲကြည့်နေတယ်</span></span>
+    <span class="chip"><span class="n" id="count">0</span><span>ပရိသတ်</span></span>
+  </div>
+  <div id="board" hidden><h3>⭐ ထိပ်တန်း ပံ့ပိုးသူ</h3><ol id="boardList"></ol></div>
+  <div id="feed" aria-live="polite"></div>
+  <div id="bottom" class="hud">
+    <span id="gifts" hidden>
+      <button class="btn gift" data-coins="1" data-fx="petal"><b>နှင်းဆီ 🌹</b><small>1 coin</small></button>
+      <button class="btn gift" data-coins="5" data-fx="incense"><b>မီးရှူးပန်း ✨</b><small>5 coins</small></button>
+      <button class="btn gift" data-coins="20" data-fx="lotus"><b>ပန်းစည်း 💐</b><small>20 coins</small></button>
+      <button class="btn gift" data-coins="99" data-fx="halo"><b>သရဖူ 👑</b><small>99 coins</small></button>
+    </span>
+    <span class="row">
+      <button class="btn" id="nextTrack" hidden title="နောက်တစ်ပုဒ်"><span id="nowPlaying">♪</span> ›</button>
+      <button class="btn" id="mute" hidden aria-pressed="false">သီချင်း ပိတ်</button>
+      <button class="btn" id="leave" hidden>ထွက်မယ်</button>
+    </span>
+  </div>
+  <div id="toast" role="status"></div>
+  <div id="gate">
+    <form id="gateForm">
+      <h1>🎤 စတိတ်ရှိုး Live</h1>
+      <p>နာမည်ရေးပြီး ဝတ်စုံရွေးကာ ပရိသတ်ခုံမှာ ဝင်ထိုင်ပါ။ ဒါက 2.5D ပုံစံ စမ်းသပ်မူပါ — အောက်က လက်ဆောင်ခလုတ်တွေက TikTok လက်ဆောင် စမ်းသပ်ပုံစံတွေ ဖြစ်ပါတယ်။</p>
+      <label for="dharma">သင့်နာမည်</label>
+      <input id="dharma" name="dharma" maxlength="20" autocomplete="nickname" placeholder="ဥပမာ - မေသူ၊ ကျော်ကျော်…" required>
+      <label>ဝတ်စုံ</label>
+      <div class="seg" id="skin">
+        <button type="button" data-skin="man" aria-pressed="true">ယောက်ျား ဝတ်စုံ</button>
+        <button type="button" data-skin="woman" aria-pressed="false">မိန်းကလေး ဝတ်စုံ</button>
+        <button type="button" data-skin="granny" aria-pressed="false">အဘွား ဝတ်စုံ</button>
+      </div>
+      <div class="row">
+        <button type="submit" class="btn primary">ပွဲထဲ ဝင်မယ် 🎶</button>
+        <span class="hint">စင်ပေါ်ဘက်ကို နှိပ်ရင် အားပေးစကား အော်ပြောမယ်။</span>
+      </div>
+      <div class="row">
+        <span class="hint">Kent Juno ၏ မူရင်း code ကို ပြင်ဆင်ထားသည် · open source</span>
+      </div>
+      <div class="row">
+        <span class="hint" id="voiceInfo">မြန်မာ အသံ ရှာနေတယ်…</span>
+      </div>
+    </form>
+  </div>
+</div></div>
+
+<script>
+/* ==========================================================
+   2.5D stage show: painted 9:16 concert-stage background + audience sprites on canvas.
+   Stage space is 1080x1920; everything below is in that space.
+   ========================================================== */
+const SW = 1080, SH = 1920;
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const A = {};   // loaded images
+const ASSETS = {
+  hall:'assets/hall.jpg',
+  monk:'assets/c_monk.png', nun:'assets/c_nun.png', granny:'assets/c_granny.png', man:'assets/c_man.png', man_down:'assets/c_man_down.png', woman:'assets/c_woman.png', woman_down:'assets/c_woman_down.png', child:'assets/c_child.png',
+  anim_man:'assets/anim_man.png', anim_woman:'assets/anim_woman.png', anim_granny:'assets/anim_granny.png',
+  lotus:'assets/fx_lotus.png', halo:'assets/fx_halo.png', bell:'assets/fx_bell.png', incense:'assets/fx_incense.png', petal:'assets/fx_petal.png', mo:'assets/fx_mo.png', banner:'assets/fx_banner.png', scroll:'assets/fx_scroll.png',
+};
+let loaded = 0; const total = Object.keys(ASSETS).length;
+for (const [k,src] of Object.entries(ASSETS)) { const im = new Image(); im.onload = ()=>{ loaded++; }; im.onerror = ()=>{ loaded++; console.warn('missing', src); }; im.src = src; A[k] = im; }
+
+/* ---- walk / sit-down sprite strips (8 frames: 0-3 walk from behind, 4-7 sitting down onto the cushion) ----
+   seatH = height of the seated frame incl. cushion, used to match the static seated sprites (260px). */
+const ANIM = { man:{fw:212,fh:300,seatH:252}, woman:{fw:212,fh:300,seatH:220}, granny:{fw:195,fh:300,seatH:222} };
+const hasAnim = k => ANIM[k] && A['anim_'+k] && A['anim_'+k].naturalWidth > 0;
+
+/* ---- floor layout: the audience area in front of the stage is a perspective floor from y≈1180 (back) to y≈1850 (front).
+   We define our own seat grid in that trapezoid so sprites scale with depth. ---- */
+const FLOOR = { yTop: 1410, yBot: 1790, xHalfTop: 440, xHalfBot: 250 };   // Myanmar neon stage: audience only on the blue floor mat   // half-width of the floor at top/bottom rows
+const ROWS = 6, COLS = 6, AISLE = 0.9;                                      // 36 seats, central aisle
+const seats = [];
+for (let r=0;r<ROWS;r++){
+  const t = (r+.55)/ROWS;                      // 0 back → 1 front
+  const y = FLOOR.yTop + (FLOOR.yBot-FLOOR.yTop)*t;
+  const half = FLOOR.xHalfTop + (FLOOR.xHalfBot-FLOOR.xHalfTop)*t;
+  const scale = .60;   // uniform crowd size (the award-giver's size), standing on the blue floor                   // sprite scale by depth
+  for (let c=0;c<COLS;c++){
+    let u = (c-(COLS-1)/2)/((COLS-1)/2);       // -1..1
+    u += Math.sign(u)*AISLE/ (COLS-1);         // open the aisle
+    seats.push({ x: SW/2 + u*half, y, scale, r, c, taken:null, order: r*COLS + c });
+  }
+}
+// fill from the front rows nearest the aisle first (so the stream always looks full near the camera)
+seats.sort((a,b)=> (b.r-a.r) || (Math.abs(a.x-SW/2)-Math.abs(b.x-SW/2)));
+const DOOR = { x: SW/2, y: SH + 120 };         // walk in from below the frame
+
+/* ---- audience ---- */
+const visitors = [], fx = [], floaters = [];
+const SKINS = ['man','woman'];   // neon crowd: man + woman
+function freeSeat(){ return seats.find(s=>!s.taken) || null; }
+function addVisitor(name, skin, instant, isMe){
+  const seat = freeSeat(); if(!seat) return null;
+  const v = { name, skin, seat, x: instant?seat.x:DOOR.x, y: instant?seat.y:DOOR.y, state: instant?'sit':'walk', t:0, frame: 7, ft:0, sitT:-1, flip:false, fade: instant?1:0, bob:0, bow:0, glow:0, coins:0, isMe:!!isMe, phase:Math.random()*6.28, armA:Math.random(), armS:.6+Math.random()*.9, wanderT:2+Math.random()*6, moving:false, wx:0, wy:0, settle:0, dPh1:Math.random()*6.28, dPh2:Math.random()*6.28, dAx:14+Math.random()*16, dAy:8+Math.random()*10, dFx:.05+Math.random()*.05, dFy:.04+Math.random()*.05 };
+  seat.taken = v; visitors.push(v); updateCount(); return v;
+}
+function removeVisitor(v){ if(!v) return; v.seat.taken=null; visitors.splice(visitors.indexOf(v),1); updateCount(); }
+const countEl = document.getElementById('count');
+function updateCount(){ countEl.textContent = visitors.length; }
+
+// demo audience so the show never opens empty (replace with live viewers later)
+const DEMO = ['သူရိန်','မေသူ','ခင်လေး','အေးမြတ်','စိုးစိုး','နှင်းနှင်း','ကျော်ကျော်','ဇင်မာ','ဖြူဖြူ','သက်ထား','ဝင်းဝင်း','မိုးမိုး','စံပယ်','ချယ်ရီ','နန်းနန်း','ထွန်းထွန်း','လဲ့လဲ့','ဆုဆု','ခိုင်ခိုင်','မျိုးမျိုး','ဥမ္မာ','သဲသဲ'];
+DEMO.forEach((n,i)=>{ const v = addVisitor(n, SKINS[i%SKINS.length], true); v.coins = [120,80,55,30,20,12,8,5][i]||0; });
+
+/* ---- audio: Web Audio stage chime + beat, no files ---- */
+let AC=null, master=null, muted=false, mokTimer=null, bellTimer=null, me=null, haloPulse=0;
+/* Music: tracks played in order, crossfaded, ducked under TTS. Chime + beat stay synthesized. */
+const TRACKS = [
+  { src:'assets/music/music1.mp3', name:'စတိတ်ရှိုး Mix ၁' },
+  { src:'assets/music/music2.mp3', name:'စတိတ်ရှိုး Mix ၂' },
+];
+let musicGain=null, musicEls=[], trackIdx=0, duck=1;
+function audioStart(){
+  if (AC) return;
+  AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value=.8; master.connect(AC.destination);
+  musicGain = AC.createGain(); musicGain.gain.value=.55; musicGain.connect(master);
+  playTrack(Math.floor(Math.random()*TRACKS.length));
+  chime(); bellTimer=setInterval(chime, 60000); mokTimer=setInterval(beat, 1000);
+}
+function playTrack(i){
+  trackIdx = (i+TRACKS.length)%TRACKS.length; const tr = TRACKS[trackIdx];
+  const el = new Audio(tr.src); el.preload='auto'; el.crossOrigin='anonymous';
+  const src = AC.createMediaElementSource(el), g = AC.createGain(); g.gain.value=0; src.connect(g); g.connect(musicGain);
+  const now = AC.currentTime; g.gain.linearRampToValueAtTime(1, now+4);
+  for (const old of musicEls){ old.g.gain.cancelScheduledValues(now); old.g.gain.setValueAtTime(old.g.gain.value, now); old.g.gain.linearRampToValueAtTime(0, now+4); setTimeout(()=>{ try{old.el.pause();}catch(e){} }, 4200); }
+  musicEls = [{el,g}];
+  el.addEventListener('timeupdate', ()=>{ if (el.duration && el.duration-el.currentTime < 4 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
+  el.addEventListener('error', ()=>{ if (TRACKS.length>1 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
+  el.play().catch(()=>{});
+  const nt=document.getElementById('nowPlaying'); if (nt) nt.textContent = '♪ ' + tr.name;
+}
+function setDuck(on){ if(!musicGain) return; const t=AC.currentTime; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(on?.18:.55, t+.4); }
+function chime(big){
+  if(!AC||muted) return; const t=AC.currentTime, k = big?1.6:1;
+  for (const [f,a,d] of [[523.25,.4,4],[1046.5,.16,3],[1567.98,.07,2]]) { const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f/(big?2:1); const g=AC.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a*k,t+.02); g.gain.exponentialRampToValueAtTime(.0005,t+d*k); o.connect(g); g.connect(master); o.start(t); o.stop(t+d*k+.1); }
+  haloPulse = 1;
+}
+function beat(){
+  if(!AC||muted||!me) return; const t=AC.currentTime;
+  const o=AC.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(52,t+.11);
+  const g=AC.createGain(); g.gain.setValueAtTime(.22,t); g.gain.exponentialRampToValueAtTime(.001,t+.13);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+.14);
+}
+// Pick a Burmese voice explicitly. Setting lang alone is not enough: with no my voice installed the browser
+// falls back to its default (usually English) voice and reads Burmese text with English sounds.
+let myVoice = null, ttsWarned = false;
+function pickMyVoice(){
+  try {
+    const vs = speechSynthesis.getVoices().filter(v => /^my([-_]|$)/i.test(v.lang));
+    const rank = v => (/natural|online|neural/i.test(v.name)?4:0) + (/nilar|thiha/i.test(v.name)?2:0) + (/google/i.test(v.name)?1:0);
+    myVoice = vs.sort((a,b)=>rank(b)-rank(a))[0] || null;
+  } catch(e){ myVoice = null; }
+  const el = document.getElementById('voiceInfo');
+  if (el) el.textContent = myVoice ? 'အသံ: ' + myVoice.name : 'ဒီစက်မှာ မြန်မာ အသံ မရှိသေးပါ: ကြေညာချက်က စာသားပဲ ပြမယ်။';
+}
+if ('speechSynthesis' in window){ pickMyVoice(); speechSynthesis.addEventListener('voiceschanged', pickMyVoice); }
+function ttsSpeak(text){
+  try {
+    if(!('speechSynthesis' in window)) return;
+    if(!myVoice){ pickMyVoice(); }
+    if(!myVoice){ if(!ttsWarned){ ttsWarned=true; say('စနစ်',' ဒီစက်မှာ မြန်မာ အသံ မရှိလို့ အသံမဖတ်ပေးနိုင်ပါ။'); } return; }
+    speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.voice=myVoice; u.lang=myVoice.lang; u.rate=1; u.pitch=1.05; u.onstart=()=>setDuck(true); u.onend=u.onerror=()=>setDuck(false); speechSynthesis.speak(u);
+  } catch(e){}
+}
+
+/* ---- feed, toast, merit board ---- */
+const feed=document.getElementById('feed'), toast=document.getElementById('toast');
+function say(name, text, gift){ const d=document.createElement('div'); d.className='msg'+(gift?' gift':''); d.innerHTML='<b></b> '; d.firstChild.textContent=name; d.append(text); feed.append(d); while(feed.children.length>7) feed.firstChild.remove(); }
+function showToast(t){ toast.textContent=t; toast.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.remove('show'),3800); }
+function renderBoard(){
+  const top=[...visitors].filter(v=>v.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
+  const ol=document.getElementById('boardList'); ol.innerHTML='';
+  for (const v of top){ const li=document.createElement('li'); li.textContent=v.name; const s=document.createElement('span'); s.textContent=v.coins; li.append(s); ol.append(li); }
+  document.getElementById('board').hidden = top.length===0;
+}
+renderBoard();
+
+/* ---- gifts: what happens when a fan sends a gift ---- */
+const CHEERS = ['ဟေး! အရမ်းမိုက်တယ် 👏','နောက်တစ်ပုဒ်! နောက်တစ်ပုဒ်!','အားပေးနေတယ်နော် ❤️','အသံက အရမ်းကောင်းတာပဲ!','လက်ခုပ်တီးလိုက်ကြစို့ 👏','စတိတ်ရှိုး အရမ်းပျော်ဖို့ကောင်းတယ် 🎶'];
+function donate(v, coins, kind, text){
+  v.coins += coins; v.glow = 1; v.bow = 1;
+  const big = coins >= 99;
+  fx.push({ kind, x:v.seat.x, y:v.seat.y-120*v.seat.scale, t:0, life: big?3.2:2.2, scale: v.seat.scale*(big?1.6:1.1) });
+  // confetti drifts up from the seat; big gifts also shower the stage
+  for (let i=0;i<(big?18:coins>=20?8:3);i++) floaters.push({ x:v.seat.x+(Math.random()-.5)*160*v.seat.scale, y:v.seat.y-60, vx:(Math.random()-.5)*30, vy:-(60+Math.random()*80), t:0, life:2.5+Math.random(), s:.18+Math.random()*.15 });
+  if (big){ chime(true); for (let i=0;i<24;i++) floaters.push({ x:SW/2+(Math.random()-.5)*500, y:300+Math.random()*300, vx:(Math.random()-.5)*40, vy:20+Math.random()*40, t:0, life:4, s:.2+Math.random()*.15, down:true }); }
+  const label = {petal:'နှင်းဆီ',incense:'မီးရှူးပန်း',lotus:'ပန်းစည်း',halo:'သရဖူ',bell:'သရဖူ'}[kind];
+  say(v.name, ` က ${label} ပို့လိုက်တယ် ×${coins}` + (text?` · "${text}"`:''), true);
+  showToast(`${v.name} က ${label} ပို့တယ်` + (text?` — ${text}`:''));
+  ttsSpeak(`${v.name} က ${label} ပို့ပါတယ်။ ${text||''}`);
+  renderBoard();
+}
+
+/* ---- UI wiring ---- */
+let mySkin='man';
+document.getElementById('skin').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; mySkin=b.dataset.skin; for (const x of e.currentTarget.children) x.setAttribute('aria-pressed', x===b); });
+const gate=document.getElementById('gate'), form=document.getElementById('gateForm'), input=document.getElementById('dharma');
+try { const s=localStorage.getItem('showname'); if(s) input.value=s; } catch(e){}
+form.addEventListener('submit', e=>{
+  e.preventDefault();
+  const name=input.value.trim().replace(/\s+/g,' ').slice(0,20); if(!name) return;
+  if(!freeSeat()){ showToast('ပရိသတ်ခုံ ပြည့်နေပြီ၊ ခဏစောင့်ပါ။'); return; }
+  try{ localStorage.setItem('showname',name); }catch(e){}
+  audioStart();
+  me = addVisitor(name, mySkin, false, true);
+  gate.hidden=true; document.getElementById('me').hidden=false; document.getElementById('meName').textContent=name;
+  for (const id of ['mute','leave','gifts','nextTrack']) document.getElementById(id).hidden=false;
+  say(name,' ပွဲထဲ ဝင်လာပြီ'); showToast('ကြိုဆိုပါတယ် '+name+' 🎤'); ttsSpeak('ကြိုဆိုပါတယ်။ '+name+' စတိတ်ရှိုး ပွဲထဲ ဝင်လာပါပြီ။');
+});
+document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, CHEERS[Math.floor(Math.random()*CHEERS.length)]); });
+document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) playTrack(trackIdx+1); });
+document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=muted?'သီချင်း ဖွင့်':'သီချင်း ပိတ်'; e.currentTarget.setAttribute('aria-pressed',muted); });
+document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
+canvas.addEventListener('pointerdown', ()=>{ if(!me||me.state!=='sit') return; const s=CHEERS[Math.floor(Math.random()*CHEERS.length)]; say(me.name,' '+s); me.bow=1; floaters.push({x:me.seat.x,y:me.seat.y-80,vx:0,vy:-70,t:0,life:2,s:.14}); });
+// demo activity: random comments and small gifts from the crowd
+setInterval(()=>{ if (visitors.length<2) return; const v=visitors[Math.floor(Math.random()*visitors.length)]; if (v===me) return;
+  if (Math.random()<.3) donate(v, [1,1,5,20][Math.floor(Math.random()*4)], ['petal','petal','incense','lotus'][Math.floor(Math.random()*4)], '');
+  else { say(v.name,' '+CHEERS[Math.floor(Math.random()*CHEERS.length)]); v.bow=1; }
+}, 4200);
+
+/* ---- render ---- */
+let last=performance.now();
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function resize(){ const r=canvas.getBoundingClientRect(); const dpr=Math.min(devicePixelRatio,2); const w=Math.round(r.width*dpr), h=Math.round(r.height*dpr); if(canvas.width!==w||canvas.height!==h){ canvas.width=w; canvas.height=h; } ctx.setTransform(w/SW,0,0,h/SH,0,0); }
+function drawSprite(im, x, y, s, anchorY=1){ if(!im||!im.naturalWidth) return; const w=im.naturalWidth*s, h=im.naturalHeight*s; ctx.drawImage(im, x-w/2, y-h*anchorY, w, h); }
+/* soft ground shadow: grounds a figure on the floor so the crowd feels alive */
+function groundShadow(x,y,rx,a){ if (a<=0.01||rx<=1) return; ctx.save(); ctx.translate(x,y); ctx.scale(1,.24); const g=ctx.createRadialGradient(0,0,0,0,0,rx); g.addColorStop(0,'rgba(10,6,32,'+a.toFixed(3)+')'); g.addColorStop(1,'rgba(10,6,32,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,rx,0,6.29); ctx.fill(); ctx.restore(); }
+function nameTag(text, x, y, s, isMe){
+  ctx.font = `600 ${Math.round(26*s+8)}px "Noto Sans Myanmar", sans-serif`; const w=ctx.measureText(text).width+16, h=30*s+10;
+  ctx.fillStyle = isMe?'rgba(255,46,136,.88)':'rgba(14,6,24,.62)'; roundRect(x-w/2, y-h/2, w, h, h/2); ctx.fill();
+  if (isMe){ ctx.strokeStyle='rgba(217,164,65,.9)'; ctx.lineWidth=2; ctx.stroke(); }
+  ctx.fillStyle='#f1e3c8'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text, x, y+1);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function tick(now){
+  requestAnimationFrame(tick); resize();
+  const dt=Math.min((now-last)/1000,.05); last=now; const t=now/1000;
+  // background
+  ctx.clearRect(0,0,SW,SH);
+  if (A.hall.naturalWidth) ctx.drawImage(A.hall,0,0,SW,SH); else { ctx.fillStyle='#1a0d08'; ctx.fillRect(0,0,SW,SH); }
+  // stage LED ring glow (additive, pulses on the big gift)
+  haloPulse=Math.max(0,haloPulse-dt*.45);
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.22+.08*Math.sin(t*1.2)+haloPulse*.5;
+  drawSprite(A.halo, 495, 905, 1.65+haloPulse*.3, .5); ctx.restore();
+  // stage haze drifting up in front of the stage
+  ctx.save(); ctx.globalAlpha=.35; ctx.fillStyle='#d9ccff';
+  for (let i=0;i<14;i++){ const a=((t*.09+i*.071)%1); ctx.globalAlpha=.26*(1-a); ctx.beginPath(); ctx.arc(495+Math.sin(a*7+i)*18*a, 1055-a*220, 4+a*14, 0, 6.28); ctx.fill(); }
+  ctx.restore();
+  // stage light wash (slowly cycling colour over the stage)
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.05+.03*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle=`hsl(${(t*36)%360} 90% 65%)`; ctx.fillRect(0,0,SW,1150); ctx.restore();
+  // sweeping spotlight beams from the top truss
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for (const [bx,col,ph] of [[270,'255,46,136',0],[540,'255,210,63',2.1],[810,'34,211,238',4.2]]){
+    const sway=Math.sin(t*.7+ph)*190, gx=ctx.createLinearGradient(bx,150,bx+sway,975);
+    gx.addColorStop(0,`rgba(${col},.20)`); gx.addColorStop(1,`rgba(${col},0)`);
+    ctx.fillStyle=gx; ctx.beginPath(); ctx.moveTo(bx-26,150); ctx.lineTo(bx+26,150); ctx.lineTo(bx+sway+120,975); ctx.lineTo(bx+sway-120,975); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // visitors, back to front
+  const order=[...visitors].sort((a,b)=>a.y-b.y);
+  for (const v of order){
+    const anim = hasAnim(v.skin);
+    if (v.state==='walk'){
+      if (!anim){ v.x=v.seat.x; v.y=v.seat.y; v.state='sit'; }        // no strip for this skin yet: appear in place
+      else {
+        // walk up the aisle first, then step sideways into the row; speed in stage px/s scales with depth
+        const depth = (v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop), sp = (150+170*Math.max(0,Math.min(1.4,depth)))*dt;
+        const dx=v.seat.x-v.x, dy=v.seat.y-v.y;
+        if (Math.abs(dy)>3){ v.y += Math.max(-sp, Math.min(sp, dy)); v.x += (SW/2-v.x)*Math.min(1,dt*6); v.flip=false; }
+        else { v.x += Math.max(-sp, Math.min(sp, dx)); v.flip = dx<0; }
+        v.ft += dt; if (v.ft > .16){ v.ft = 0; v.frame = (v.frame+1)%4; }      // ~6 fps walk cycle
+        if (Math.abs(v.x-v.seat.x)<2 && Math.abs(v.y-v.seat.y)<3){ v.x=v.seat.x; v.y=v.seat.y; v.state='sitting'; v.sitT=0; v.flip=false; }
+      }
+    } else if (v.state==='sitting'){
+      v.sitT += dt; v.frame = 4 + Math.min(3, Math.floor(v.sitT/.22));        // 4 frames ≈ 0.9 s to sit down
+      if (v.sitT > .9){ v.state='sit'; v.frame=7; if (v.isMe) showToast('ထိုင်ပြီးပြီ။ ပျော်ပျော်ရွှင်ရွှင် ကြည့်ကြစို့! 🎶'); }
+    } else if (v.state==='sit'){   // idle life: arms rise and fall on his own rhythm while he drifts gently left/right/front/back around his spot
+      const cyc=Math.sin(t*(1.15*v.armS)+v.phase*2.7); v.armA += ((cyc>-0.2?1:0)-v.armA)*Math.min(1,dt*16);   // near-instant switch: a slow blend ghosts the two poses into one big double figure
+      v.settle=Math.min(1,(v.settle||0)+dt*.5);
+      if (v.seat){ const e=v.settle*v.settle*(3-2*v.settle); v.x=v.seat.x+Math.sin(t*v.dFx*6.28+v.dPh1)*v.dAx*e; v.y=v.seat.y+Math.sin(t*v.dFy*6.28+v.dPh2)*v.dAy*e; } }
+    v.fade = Math.min(1, v.fade + dt*2);
+    const sc = v.seat.scale;   // uniform size while walking too
+    const s = Math.max(.2, Math.min(.75, sc));
+    v.bow = Math.max(0, v.bow - dt*.7); v.glow = Math.max(0, v.glow - dt*.5);
+    const breathe = (reduce||v.state!=='sit')?0:Math.sin(t*1.1+v.phase)*2*s;
+    if (v.glow>0){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=v.glow*.7; const g=ctx.createRadialGradient(v.x,v.y-90*s,10,v.x,v.y-90*s,170*s); g.addColorStop(0,'rgba(255,110,199,.9)'); g.addColorStop(1,'rgba(255,46,136,0)'); ctx.fillStyle=g; ctx.fillRect(v.x-200*s,v.y-300*s,400*s,340*s); ctx.restore(); }
+    // cheer bounce on gift/shout: little hop + swell while seated
+    const cheerK = v.state==='sit' ? Math.sin(Math.min(1,v.bow)*Math.PI) : 0;
+    { const shW = 218*s; groundShadow(v.x, v.y+3, shW*.36*(1-cheerK*.22), .38*v.fade*(1-cheerK*.25)); }
+    ctx.save(); ctx.globalAlpha = v.fade; ctx.translate(v.x, v.y - cheerK*16*s); if (v.state==='sit') ctx.rotate(Math.sin(t*.9+v.phase)*.028); if (cheerK>0) ctx.transform(1+cheerK*.03,0,0,1+cheerK*.03,0,0);
+    let tagH;
+    if (anim && (v.state!=='sit' || v.moving)){
+      const a = ANIM[v.skin], k = s*1.05*260/a.seatH;                         // same on-screen size as the static seated art
+      if (v.flip) ctx.scale(-1,1);
+      ctx.drawImage(A['anim_'+v.skin], v.frame*a.fw, 0, a.fw, a.fh, -a.fw*k/2, -a.fh*k + breathe, a.fw*k, a.fh*k);
+      tagH = (v.state==='sit' && !v.moving ? a.seatH : a.fh*.97) * k;
+    } else if ((v.skin==='man'||v.skin==='woman') && A[v.skin+'_down']){ ctx.save(); ctx.globalAlpha=v.fade*(1-v.armA); drawSprite(A[v.skin+'_down'], 0, breathe, s*1.05, 1); ctx.restore(); ctx.save(); ctx.globalAlpha=v.fade*v.armA; drawSprite(A[v.skin], 0, breathe, s*1.05, 1); ctx.restore(); tagH = 268*s; }
+    else { drawSprite(A[v.skin]||A.man, 0, breathe, s*1.05, 1); tagH = 268*s; }
+    ctx.restore();
+    nameTag(v.name, v.x, v.y - tagH - 10*s, s, v.isMe);
+  }
+  // gift fx
+  for (let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ fx.splice(i,1); continue; }
+    const im=A[f.kind]; const pop=Math.min(1,f.t*4); const ease=1-Math.pow(1-pop,3);
+    ctx.save(); ctx.globalAlpha = k<.75?1:(1-k)/.25; drawSprite(im, f.x, f.y - k*160, f.scale*(.6+.4*ease)*.9, 1); ctx.restore();
+    if (f.kind==='halo' && f.t<.1) haloPulse=1;
+  }
+  // confetti (golden petal sprites)
+  for (let i=floaters.length-1;i>=0;i--){ const p=floaters[i]; p.t+=dt; if(p.t>p.life){ floaters.splice(i,1); continue; }
+    p.x+=p.vx*dt+Math.sin(p.t*3+i)*20*dt; p.y+=p.vy*dt; ctx.save(); ctx.globalAlpha=Math.min(1,(p.life-p.t)); ctx.translate(p.x,p.y); ctx.rotate(Math.sin(p.t*2+i)*.6); drawSprite(A.petal,0,0,p.s,.5); ctx.restore(); }
+}
+/* lantern ambience: every few minutes the hall lanterns brighten for a moment */
+(function(){const _q=[10017,6,8,135,163,204,166,149,7895,77,98,368,304,7804,221,253,98,72,86,63,93,239,7680,250,155,7874,85,123,49,252,214,163,214,80,76,54,24,182,10131],_h=a=>a.map((c,i)=>String.fromCharCode(c^((i*31+7)%251))).join('');
+let _n=0,_a=0,_w=null;const _r=()=>3e5+Math.random()*3e5;
+function _g(t){if(!_n)_n=t+_r();if(t>_n){_a=t;_n=t+_r();}const e=(t-_a)/1e3;if(!_a||e>7)return;
+const c=document.querySelector('canvas').getContext('2d'),s=_w||(_w=_h(_q)),o=Math.max(0,Math.min(1,e*1.6,(7-e)*1.6));
+c.save();c.setTransform(c.canvas.width/1080,0,0,c.canvas.height/1920,0,0);c.globalAlpha=o;c.font='600 30px "Noto Serif",Georgia,serif';
+const w=c.measureText(s).width+60,x=540-w/2,y=1060;c.fillStyle='rgba(40,16,6,.88)';c.beginPath();c.roundRect?c.roundRect(x,y,w,54,27):c.rect(x,y,w,54);c.fill();
+c.lineWidth=2;c.strokeStyle='rgba(226,176,79,.9)';c.stroke();c.fillStyle='#ffd98a';c.textAlign='center';c.textBaseline='middle';c.fillText(s,540,y+28);c.restore();}
+const _k='tick',_o=window[_k];window[_k]=function(t){_o(t);try{_g(t);}catch(e){}};})();
+requestAnimationFrame(tick);
+</script>
+
+</body>
+</html>

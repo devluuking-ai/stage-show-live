@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control Panel · စတိတ်ရှိုး Stage Show</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Noto+Serif+Myanmar:wght@600;700&display=swap">
+<style>
+/* Layout: three columns of cards (connection · interaction · sound/scene) over a status bar; collapses to one column on narrow windows. */
+:root{
+  --bg:#0d0716; --card:#1a0f2a; --card2:#271741; --fg:#f7eefc; --muted:#b8a6cc; --line:#43286b;
+  --gold:#ffd23f; --red:#e0245e; --green:#2f9a5f; --display:"Noto Serif Myanmar","Noto Sans Myanmar",serif; --body:"Noto Sans Myanmar","Pyidaungsu",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--body);padding:18px max(16px,env(safe-area-inset-right)) 30px max(16px,env(safe-area-inset-left))}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+h1{font-family:var(--display);font-size:24px;margin:0;color:var(--gold)}
+.status{display:flex;gap:10px;flex-wrap:wrap}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;font-variant-numeric:tabular-nums}
+.chip.ok{border-color:var(--green);color:#9fe0b4}.chip.bad{border-color:#a33;color:#f3a3a3}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px;min-width:0}
+.card h2{margin:0;font:600 15px var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--gold)}
+.hint{color:var(--muted);font-size:12px}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--fg);background:#120a20;border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:60px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.row>*{flex:1 1 0;min-width:0}
+.row.tight>*{flex:0 0 auto}
+button{font:600 13px var(--body);color:var(--fg);background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer}
+button:hover{border-color:var(--gold)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+button.primary{background:var(--green);border-color:#3f9a60}
+button.gold{background:linear-gradient(135deg,#8a6d1f,#6b4a14);border-color:var(--gold)}
+button.red{background:var(--red);border-color:#ff5c8a}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
+.check input{width:auto}
+#people{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+#people table{width:100%;border-collapse:collapse;font-size:13px}
+#people td{padding:5px 8px;border-bottom:1px solid #2c1a47}
+#people td:last-child{text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
+#log{height:220px;overflow:auto;background:#0a0514;border:1px solid var(--line);border-radius:10px;padding:8px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎛️ Control · စတိတ်ရှိုး Stage Show</h1>
+  <div class="status">
+    <span class="chip" id="srv">Server: …</span>
+    <span class="chip" id="tt">TikTok: မချိတ်ရသေး</span>
+    <span class="chip" id="cnt">0 ယောက်</span>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <h2>1 · TikTok LIVE ချိတ်ဆက်ရန်</h2>
+    <label for="uid">Live လွှင့်နေတဲ့ channel username</label>
+    <div class="row"><input id="uid" placeholder="@yourchannel" autocomplete="off"><button class="primary" id="btnConnect">ချိတ်ဆက်မယ်</button><button id="btnDisconnect">ဖြုတ်မယ်</button></div>
+    <p class="hint">Live အခန်းရဲ့ အများမြင် event တွေပဲ ဖတ်တာပါ (comment, gift, like)။ TikTok password / cookie မလိုပါ။ LIVE အရင် ဖွင့်ပြီးမှ ချိတ်ဆက်ပါ။</p>
+    <button class="gold" id="btnOverlay">Overlay 9:16 ဖွင့်မယ်</button>
+    <p class="hint">TikTok Mobile gaming / screen share Live မှာ overlay ပြနေတဲ့ Chrome tab ကို ပြပါ။ အသံအတွက် overlay မှာ "အသံဖွင့်ရန်" ကို တစ်ခါ နှိပ်ပါ။</p>
+    <h2>ပွဲထဲက ပရိသတ်</h2>
+    <div id="people"><table><tbody id="peopleBody"><tr><td class="hint">မရှိသေးပါ</td><td></td></tr></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2>2 · အပြန်အလှန် စမ်းသပ်ရန်</h2>
+    <label for="simName">ကြည့်သူ နာမည်</label>
+    <input id="simName" value="မေသူ">
+    <label for="simText">Comment / အားပေးစကား</label>
+    <input id="simText" value="အရမ်းမိုက်တယ်၊ အားပေးနေတယ်">
+    <div class="row"><button id="btnChat">Comment ပို့မယ်</button></div>
+    <div class="row">
+      <button data-gift="နှင်းဆီ" data-dia="1">နှင်းဆီ 🌹 · 1</button>
+      <button data-gift="ပန်းစည်း" data-dia="30">ပန်းစည်း 💐 · 30</button>
+      <button data-gift="သရဖူ" data-dia="199">သရဖူ 👑 · 199</button>
+    </div>
+    <p class="hint"><b>ယောက်ျား · မိန်းကလေး · အဘွား · ကလေး · ဘုန်းကြီး · သီလရှင် · vip</b> လို့ comment ရေးရင် အရုပ် ပြောင်းတယ်။</p>
+    <h2>လူအတု ထည့်ရန်</h2>
+    <div class="row"><button data-fill="15">15</button><button data-fill="36">36</button><button data-fill="64">64</button><button data-fill="100">100</button></div>
+    <button class="red" id="btnClear">ပရိသတ်ခုံ အားလုံး ရှင်းမယ်</button>
+    <h2>Bot အတု စမ်းသပ်ရန်</h2>
+    <div class="row">
+      <label>Bot အရေအတွက်<input id="botN" type="number" min="1" max="100" value="12"></label>
+      <label>အရှိန်<select id="botPace"><option value="slow">နှေး</option><option value="mid" selected>ပုံမှန်</option><option value="fast">မြန်</option></select></label>
+      <button id="btnBots">Bot ဖွင့်မယ်</button>
+    </div>
+    <p class="hint">Bot က ဒီမျက်နှာပြင်ပေါ်မှာပဲ စမ်းတာပါ — TikTok ကြည့်သူ အစစ် မဟုတ်ပါ။</p>
+  </section>
+
+  <section class="card">
+    <h2>3 · အသံ · သီချင်း · စင် Beat</h2>
+    <div class="row">
+      <label>အသံ<select id="voice"><option value="my-MM-NilarNeural">Nilar (မိန်းကလေး)</option><option value="my-MM-ThihaNeural">Thiha (ယောက်ျား)</option></select></label>
+      <label>အသံ အနိမ့်အမြင့် (Hz)<input id="pitch" type="number" step="1" value="0"></label>
+      <label>အရှိန် (%)<input id="rate" type="number" step="1" value="0"></label>
+    </div>
+    <div class="row">
+      <label>အဆိုတော်<select id="performer"><option value="female">မိန်းကလေး အဆိုတော်</option><option value="male">ယောက်ျား အဆိုတော်</option><option value="duo">စုံတွဲ အဆိုတော် (နှစ်ယောက်)</option></select></label>
+      <label>နောက်ခံသီချင်း<select id="track"><option value="1">သီချင်း ၁</option><option value="2">သီချင်း ၂</option><option value="3">ကိုယ်ပိုင်သီချင်း (တင်ထားတာ)</option></select></label>
+    </div>
+    <div class="row">
+      <input type="file" id="musicFile" accept="audio/*">
+      <button id="btnUploadMusic">ကိုယ်ပိုင်သီချင်း တင်မယ်</button>
+      <span class="hint" id="upMsg"></span>
+    </div>
+    <label for="sayText">စမ်းဖတ် / ကြေညာရန် စာသား</label>
+    <textarea id="sayText">စတိတ်ရှိုး Live မှ ကြိုဆိုပါတယ်။ အားလုံး ပျော်ရွှင်ကြပါစေ၊ အားပေးကြပါ။</textarea>
+    <div class="row"><button class="primary" id="btnSay">Live မှာ ဖတ်ပြမယ်</button><button id="btnChant">ကြေညာချက် အခု ဖတ်မယ်</button></div>
+    <div class="row tight">
+      <label class="check"><input type="checkbox" id="music" checked> နောက်ခံသီချင်း</label>
+      <label class="check"><input type="checkbox" id="mo"> Beat တီးလုံး</label>
+      <label class="check"><input type="checkbox" id="autoChant" checked> အလိုအလျောက် ကြေညာချက်</label>
+    </div>
+    <div class="row">
+      <label>Beat အရှိန် (BPM)<input id="moBpm" type="number" min="20" max="120" value="52"></label>
+      <label>ကြေညာချက် ကြားချိန် (မိနစ်)<input id="chantEveryMin" type="number" min="1" max="60" value="3"></label>
+    </div>
+    <div class="row"><button id="btnBell">🎉 အထူးအသံ + စင်မီး</button><button id="btnMo">Beat တစ်ချက်</button></div>
+    <h2>စင် အပြင်အဆင်</h2>
+    <label>ပွဲ နာမည်<input id="title" value="စတိတ်ရှိုး Stage Show"></label>
+    <label>အောက်စာ<input id="subtitle" value="ကြိုဆိုပါတယ် · အားပေးကြပါ 🎤"></label>
+    <div class="row">
+      <label>ပရိသတ်ခုံ အရေအတွက်<select id="seatMode"><option value="auto">အလိုအလျောက် 24 → 100</option><option value="24">24</option><option value="36">36</option><option value="64">64</option><option value="100">100</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="joinOnEnter"> အခန်းထဲ ဝင်လာသူတိုင်း ထိုင်ခုံပေးမယ် (comment မလိုပါ)</label>
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+  <h2>မှတ်တမ်း</h2>
+  <div id="log" aria-live="polite"></div>
+</section>
+<footer class="hint" style="margin-top:14px;text-align:center">Stage Show Live · open source MIT · မူရင်း code: Kent Juno</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let ws = null;
+const send = (cmd, extra={}) => ws?.readyState===1 && ws.send(JSON.stringify({ t:'ctl', cmd, ...extra }));
+function logLine(s){ const el=$('log'); el.textContent += s + '\n'; el.scrollTop = el.scrollHeight; }
+const SETTING_IDS = ['voice','pitch','rate','music','mo','autoChant','moBpm','chantEveryMin','title','subtitle','seatMode','joinOnEnter','performer','track'];
+function fillSettings(s){ for (const k of SETTING_IDS){ const el=$(k); if (!el || s[k]===undefined) continue; if (el.type==='checkbox') el.checked=!!s[k]; else el.value=s[k]; } }
+function readSettings(){ const o={}; for (const k of SETTING_IDS){ const el=$(k); o[k] = el.type==='checkbox' ? el.checked : el.type==='number' ? +el.value : el.value; } return o; }
+const people = new Map();
+function renderPeople(){
+  const tb=$('peopleBody'); tb.innerHTML='';
+  const list=[...people.values()].sort((a,b)=>b.coins-a.coins || a.name.localeCompare(b.name));
+  if (!list.length){ tb.innerHTML='<tr><td class="hint">မရှိသေးပါ</td><td></td></tr>'; }
+  list.forEach((p,i)=>{ const tr=document.createElement('tr'); const a=document.createElement('td'); a.textContent=`${String(i+1).padStart(2,'0')}  ${p.name}`; const b=document.createElement('td'); b.textContent=p.coins? p.coins+' ✧':''; tr.append(a,b); tb.append(tr); });
+  $('cnt').textContent = `${people.size} ယောက်`;
+}
+function setTT(st){
+  const el=$('tt'); el.className='chip ' + (st.status==='connected'?'ok':st.status==='error'?'bad':'');
+  el.textContent = st.status==='connected' ? `TikTok: @${st.uniqueId} ✓` : st.status==='connecting' ? `TikTok: ချိတ်ဆက်နေတယ် @${st.uniqueId}…` : st.status==='error' ? 'TikTok: ချိတ်ဆက် အမှား' : 'TikTok: မချိတ်ရသေး';
+}
+function connect(){
+  ws = new WebSocket(`ws://${location.host}/ws?role=control`);
+  ws.onopen = () => { $('srv').textContent='Server: လည်နေတယ်'; $('srv').className='chip ok'; };
+  ws.onclose = () => { $('srv').textContent='Server: ချိတ်ဆက်ပြတ်'; $('srv').className='chip bad'; setTimeout(connect, 2000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t==='state'){ fillSettings(m.settings); setTT(m.tiktok); people.clear(); for (const v of m.viewers) people.set(v.id,v); renderPeople(); }
+    else if (m.t==='logs'){ $('log').textContent=''; m.lines.forEach(logLine); }
+    else if (m.t==='log') logLine(m.line);
+    else if (m.t==='tiktok') setTT(m);
+    else if (m.t==='join'){ people.set(m.v.id,m.v); renderPeople(); }
+    else if (m.t==='leave'){ people.delete(m.id); renderPeople(); }
+    else if (m.t==='gift'){ const p=people.get(m.id); if(p){ p.coins=m.total; renderPeople(); } }
+    else if (m.t==='bots') $('btnBots').textContent = m.on ? 'Bot ပိတ်မယ်' : 'Bot ဖွင့်မယ်';
+  };
+}
+connect();
+
+$('btnConnect').onclick = () => send('connect', { uniqueId: $('uid').value });
+$('uid').onkeydown = e => { if (e.key==='Enter') send('connect', { uniqueId: $('uid').value }); };
+$('btnDisconnect').onclick = () => send('disconnect');
+$('btnOverlay').onclick = () => window.open('/live/overlay.html', 'overlay916', 'width=540,height=960');
+$('btnChat').onclick = () => send('chat', { name: $('simName').value, text: $('simText').value });
+document.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => send('gift', { name: $('simName').value, gift: b.dataset.gift, diamonds: +b.dataset.dia, count: 1 }));
+document.querySelectorAll('[data-fill]').forEach(b => b.onclick = () => send('fill', { n: +b.dataset.fill }));
+$('btnClear').onclick = () => send('clear');
+$('btnBots').onclick = () => send('bots', { on: $('btnBots').textContent.includes('ဖွင့်'), n: +$('botN').value, pace: $('botPace').value });
+$('btnSay').onclick = () => send('say', { text: $('sayText').value });
+$('btnChant').onclick = () => send('chant');
+$('btnBell').onclick = () => send('bell');
+$('btnMo').onclick = () => send('mo');
+for (const k of SETTING_IDS) $(k).addEventListener('change', () => send('settings', { settings: readSettings() }));
+$('performer').addEventListener('change', () => { $('voice').value = $('performer').value === 'male' ? 'my-MM-ThihaNeural' : 'my-MM-NilarNeural'; send('settings', { settings: readSettings() }); });
+$('btnUploadMusic').onclick = async () => { const f = $('musicFile').files[0]; if (!f) { $('upMsg').textContent = 'အရင် ဖိုင် ရွေးပါ'; return; } $('upMsg').textContent = 'တင်နေတယ်…';
+  try { const r = await fetch('/live/upload-music', { method: 'POST', body: f }); const j = await r.json();
+    if (j.ok) { $('upMsg').textContent = 'တင်ပြီးပြီ ✓'; $('track').value = '3'; send('settings', { settings: readSettings() }); } else $('upMsg').textContent = 'မအောင်မြင်ပါ'; }
+  catch (e) { $('upMsg').textContent = 'အမှား: ' + e.message; } };
+</script>
+</body>
+</html>

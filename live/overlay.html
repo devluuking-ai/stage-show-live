@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overlay 9:16 · စတိတ်ရှိုး Stage Show</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Noto+Serif+Myanmar:wght@600;700&display=swap">
+<style>
+/* Overlay for TikTok LIVE Studio / OBS window capture. Everything sits on a 1080×1920 stage scaled to the window. */
+:root{
+  --bg:#08040f; --fg:#fdf6ff; --muted:#cdbcf0; --gold:#ffd23f; --gold2:#ffe27a; --pink:#ff2e88; --red:#a1124a;
+  --panel:rgba(20,8,34,.80); --line:rgba(255,120,190,.55);
+  --display:"Noto Serif Myanmar","Noto Sans Myanmar",serif; --body:"Noto Sans Myanmar","Pyidaungsu",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(--body);color:var(--fg)}
+#fit{position:fixed;inset:0;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1080px;height:1920px;transform-origin:center center;overflow:hidden;background:var(--bg)}
+#c{position:absolute;inset:0;width:1080px;height:1920px}
+.ui{position:absolute;z-index:3}
+/* title plaque */
+#plaque{left:90px;right:90px;top:70px;height:150px;border:3px solid var(--gold);border-radius:28px;
+  background:linear-gradient(180deg,rgba(84,16,64,.92),rgba(24,8,44,.92));box-shadow:0 0 0 6px rgba(0,0,0,.35),0 0 50px rgba(255,46,136,.30) inset;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+#plaque::before,#plaque::after{content:"✦";position:absolute;top:50%;transform:translateY(-50%);font-size:44px;color:var(--gold)}
+#plaque::before{left:34px}#plaque::after{right:34px}
+#title{font-family:var(--display);font-weight:700;font-size:58px;letter-spacing:.06em;color:var(--gold2);text-transform:uppercase;text-shadow:0 2px 0 #2a0a3a,0 0 22px rgba(255,46,136,.5)}
+#subtitle{font-family:var(--display);font-size:30px;letter-spacing:.12em;color:var(--fg)}
+/* pills */
+#pills{top:244px;left:0;right:0;display:flex;justify-content:center;gap:26px}
+.pill{background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:12px 28px;font-size:34px;font-weight:600;display:flex;align-items:center;gap:14px;font-variant-numeric:tabular-nums}
+.pill small{font-size:20px;font-weight:500;color:var(--muted);line-height:1.05}
+.dot{width:18px;height:18px;border-radius:50%;background:#46d36b;box-shadow:0 0 12px #46d36b}
+/* side cards */
+.card{background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:18px 22px;font-size:25px;line-height:1.4;backdrop-filter:blur(4px)}
+#guide{left:24px;top:630px;width:290px}
+#guide div+div{border-top:1px solid rgba(255,120,190,.3);margin-top:10px;padding-top:10px}
+#guide b{color:var(--gold2)}
+#merit{right:24px;top:630px;width:290px;text-align:center}
+#merit h3{margin:0 0 8px;font-family:var(--display);font-size:30px;color:var(--gold2);letter-spacing:.06em}
+#merit ol{margin:0;padding:0;list-style:none;text-align:left;display:grid;gap:6px}
+#merit li{display:flex;justify-content:space-between;gap:10px}
+#merit li span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#merit li span:last-child{color:var(--gold2);font-variant-numeric:tabular-nums}
+#merit .empty{color:var(--muted);text-align:center}
+/* chant banner + gift banner */
+#chant{left:110px;right:110px;top:330px;padding:22px 30px;text-align:center;border-radius:24px;border:2px solid var(--gold);
+  background:rgba(30,10,48,.88);opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s}
+#chant.show{opacity:1;transform:none}
+#chant h4{margin:0 0 8px;font-family:var(--display);color:var(--gold2);font-size:30px;letter-spacing:.1em}
+#chant p{margin:0;font-family:var(--display);font-style:italic;font-size:30px;line-height:1.45}
+#gift{left:70px;right:70px;top:330px;z-index:5;padding:30px 40px;text-align:center;border-radius:28px;border:3px solid var(--gold2);
+  background:radial-gradient(ellipse at 50% 0%,rgba(190,24,110,.95),rgba(40,10,60,.95));box-shadow:0 0 60px rgba(255,46,136,.5);
+  opacity:0;transform:scale(.85);transition:opacity .45s,transform .45s cubic-bezier(.2,1.4,.4,1)}
+#gift.show{opacity:1;transform:none}
+#gift .who{font-family:var(--display);font-weight:700;font-size:52px;color:var(--gold2)}
+#gift .what{font-size:36px;margin-top:6px}
+#gift .pray{font-family:var(--display);font-style:italic;font-size:32px;color:var(--fg);margin-top:12px;opacity:.95}
+/* enable sound (needed once: browsers block autoplay) */
+#unmute{position:absolute;z-index:9;left:50%;top:1540px;transform:translateX(-50%);font:600 36px var(--body);padding:22px 44px;border-radius:24px;border:3px solid var(--gold2);background:linear-gradient(135deg,#ff2e88,#7c3aed);color:#fff;cursor:pointer}
+#conn{position:absolute;z-index:4;right:16px;bottom:12px;font-size:20px;color:var(--muted);opacity:.6}
+@media (prefers-reduced-motion:reduce){#chant,#gift{transition:none}}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <canvas id="c" width="1080" height="1920"></canvas>
+  <div id="plaque" class="ui"><div id="title">စတိတ်ရှိုး Stage Show</div><div id="subtitle">ကြိုဆိုပါတယ် · အားပေးကြပါ 🎤</div></div>
+  <div id="pills" class="ui">
+    <div class="pill"><span class="dot"></span><span id="count">0/24</span><small>ပွဲကြည့်<br>နေသူ</small></div>
+    <div class="pill">⏱ <span id="timer">00:00:00</span></div>
+  </div>
+  <div id="guide" class="card ui">
+    <div>💬 <b>Comment တစ်ခုခု</b> ရေးပြီး ပွဲထဲ ဝင်ပါ</div>
+    <div>အရုပ်ပြောင်းချင်ရင် <b>ယောက်ျား · မိန်းကလေး · အဘွား · ကလေး</b> လို့ ရေးပါ</div>
+    <div>🎁 Gift ပို့ရင် <b>နာမည်ကို အသံနဲ့ ခေါ်ပေးပါတယ်</b></div>
+  </div>
+  <div id="merit" class="card ui"><h3>✦ Top ပံ့ပိုးသူ ✦</h3><ol id="meritList"><li class="empty">မရှိသေးပါ</li></ol></div>
+  <div id="chant" class="ui"><h4>✦ ကြေညာချက် ✦</h4><p id="chantText"></p></div>
+  <div id="gift" class="ui"><div class="who" id="giftWho"></div><div class="what" id="giftWhat"></div><div class="pray" id="giftPray"></div></div>
+  <button id="unmute">🔔 အသံဖွင့်ရန် နှိပ်ပါ</button>
+  <div id="conn">ချိတ်ဆက်နေသည်…</div>
+</div></div>
+
+<script>
+/* ======================= stage fit ======================= */
+const stage = document.getElementById('stage');
+function fit(){ const s = Math.min(innerWidth/1080, innerHeight/1920); stage.style.transform = `translate(-50%,-50%) scale(${s})`; }
+addEventListener('resize', fit); fit();
+
+/* ======================= assets ======================= */
+const A = {};
+const IMG = { hall:'/assets/hall.jpg', monk:'/assets/c_monk.png', nun:'/assets/c_nun.png', granny:'/assets/c_granny.png', man:'/assets/c_man.png', man_down:'/assets/c_man_down.png',
+  woman:'/assets/c_woman.png', woman_down:'/assets/c_woman_down.png', child:'/assets/c_child.png', performer_female:'/assets/performer_female.png', performer_female_stand:'/assets/performer_female_stand.png', performer_female_one:'/assets/performer_female_one.png', performer_female_two:'/assets/performer_female_two.png', performer_female_wave:'/assets/performer_female_wave.png', performer_male:'/assets/performer_male.png', performer_male_stand:'/assets/performer_male_stand.png', performer_male_one:'/assets/performer_male_one.png', performer_male_two:'/assets/performer_male_two.png', performer_male_wave:'/assets/performer_male_wave.png', anim_man:'/assets/anim_man.png', anim_woman:'/assets/anim_woman.png', anim_granny:'/assets/anim_granny.png', front_singer:'/assets/front_singer.png', front_woman:'/assets/front_woman.png',
+  lotus:'/assets/fx_lotus.png', halo:'/assets/fx_halo.png', bell:'/assets/fx_bell.png', incense:'/assets/fx_incense.png', petal:'/assets/fx_petal.png' };
+for (const [k,src] of Object.entries(IMG)){ const im=new Image(); im.src=src; A[k]=im; }
+const ANIM = { man:{fw:212,fh:300,seatH:252}, woman:{fw:212,fh:300,seatH:220}, granny:{fw:195,fh:300,seatH:222} };
+const hasAnim = k => ANIM[k] && A['anim_'+k]?.naturalWidth > 0;
+const avatars = new Map();
+function avatar(url){ if(!url) return null; let im=avatars.get(url); if(!im){ im=new Image(); im.referrerPolicy='no-referrer'; im.src=url; avatars.set(url,im); } return im.naturalWidth?im:null; }
+
+/* ======================= seats ======================= */
+// Floor trapezoid in front of the stage: back row just below the stage, front row near the bottom.
+const FLOOR = { yTop: 1410, yBot: 1790, halfTop: 440, halfBot: 250 };   // Myanmar neon stage: the audience sits only on the bright blue floor mat   // neon iso stage: floor narrows toward the bottom-centre channel between the corner platforms
+const GRID = { 24:[6,4], 36:[6,6], 64:[8,8], 100:[10,10] };
+let cap = 24, seats = [];
+function layout(c){
+  cap = c; const [cols, rows] = GRID[c] || GRID[24]; seats = [];
+  for (let r=0;r<rows;r++){
+    const t = rows===1 ? .5 : r/(rows-1);                     // 0 = back row
+    const y = FLOOR.yTop + (FLOOR.yBot-FLOOR.yTop)*t;
+    const half = FLOOR.halfTop + (FLOOR.halfBot-FLOOR.halfTop)*t;
+    const scale = .60 * (6/cols) ** .75;   // uniform crowd: everyone the award-giver's size, standing on the blue floor (no chairs, no perspective shrink)
+    const gap = 2*half/(cols-1) * .93;                        // room for one name tag
+    for (let k=0;k<cols;k++){
+      let u = (k-(cols-1)/2)/((cols-1)/2); u = Math.sign(u)*(.14 + .86*Math.abs(u));   // open a centre aisle
+      seats.push({ x: 540 + u*half, y, scale, r, k, rows, gap });
+    }
+  }
+  // fill front rows first, aisle side first, so a small crowd still looks full on camera
+  seats.sort((a,b)=> (b.r-a.r) || (Math.abs(a.x-540)-Math.abs(b.x-540)));
+  reseat();
+}
+const visitors = new Map();  // id -> visitor
+let order = [];               // ids in seating order
+function reseat(){
+  order = order.filter(id => visitors.has(id));
+  order.forEach((id,i) => { const v = visitors.get(id), s = seats[i]; if (!v || !s) return; v.seat = s; if (v.state==='sit') { v.tx = s.x; v.ty = s.y; } });
+}
+document.getElementById('count').textContent = '0/24';
+
+/* the performer fixed on stage (gold tag + spotlight ring behind) */
+const TEACHERS = [ { name:'🎤 အဆိုတော်', skin:'performer', x:495, y:950, s:.66, master:true } ];
+
+function addVisitor(p, instant){
+  let _h=0; const _nm=String(p.name||p.id||''); for (let i=0;i<_nm.length;i++) _h=(_h*31+_nm.charCodeAt(i))>>>0;
+  p = { ...p, skin: _h%2 ? 'woman' : 'man' };   // neon crowd: man + woman, fixed per person by name
+  if (visitors.has(p.id)) { Object.assign(visitors.get(p.id), { name:p.name, skin:p.skin, avatar:p.avatar, coins:p.coins }); return; }
+  const v = { ...p, state:'walk', x:540, y:2020, tx:0, ty:0, frame:0, ft:0, sitT:0, flip:false, fade:0, bubble:null, glow:0, bow:0, phase:Math.random()*6.28, armA:Math.random(), armS:.6+Math.random()*.9, wanderT:2+Math.random()*6, moving:false, wx:0, wy:0, settle:0, dPh1:Math.random()*6.28, dPh2:Math.random()*6.28, dAx:14+Math.random()*16, dAy:8+Math.random()*10, dFx:.05+Math.random()*.05, dFy:.04+Math.random()*.05 };
+  visitors.set(p.id, v); order.push(p.id); reseat();
+  if (instant || !v.seat){ v.state='sit'; v.frame=7; v.x=v.tx=v.seat?.x||540; v.y=v.ty=v.seat?.y||1500; v.fade = instant?1:0; }
+}
+function removeVisitor(id){ visitors.delete(id); reseat(); }
+/* crown-gift award walk: the giver climbs the front stairs to the singer, the award shows and auto-hides, he comes back down front-facing and returns to his seat cheering */
+function startAward(v){ awardBusy=true; v.state='award'; v.aw={ ph:'up1', t:0, frame:0, ft:0 }; }
+const awardScale=y=>{ const cols=(GRID[cap]||GRID[24])[0]; const fl=.60*(6/cols)**.75*1.05*260/252; if (y>=FLOOR.yTop) return fl; const k=Math.max(0,Math.min(1,(y-950)/(FLOOR.yTop-950))); return .68+(fl-.68)*k; };   // on the floor he is exactly the crowd's uniform size
+
+/* ======================= HUD ======================= */
+let startedAt = Date.now();
+function updateCount(){ document.getElementById('count').textContent = `${visitors.size}/${cap}`; }
+function renderMerit(){
+  const top = [...visitors.values()].filter(v=>v.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,5);
+  const ol = document.getElementById('meritList'); ol.innerHTML='';
+  if (!top.length){ ol.innerHTML='<li class="empty">မရှိသေးပါ</li>'; return; }
+  top.forEach((v,i)=>{ const li=document.createElement('li'); const a=document.createElement('span'); a.textContent=`${i+1}. ${v.name}`; const b=document.createElement('span'); b.textContent=v.coins; li.append(a,b); ol.append(li); });
+}
+setInterval(()=>{ const s=Math.floor((Date.now()-startedAt)/1000); document.getElementById('timer').textContent=[s/3600,s/60%60,s%60].map(x=>String(Math.floor(x)).padStart(2,'0')).join(':'); },1000);
+let giftHide=null;
+let awardBusy=false;   // a giver award walk is in progress
+function showGift(m){
+  document.getElementById('giftWho').textContent = m.name;
+  document.getElementById('giftWhat').textContent = `${m.giftName}${m.count>1?' ×'+m.count:''} ပို့ပြီး အားပေးတယ် · စုစုပေါင်း ${m.total} ✦`;
+  document.getElementById('giftPray').textContent = '“' + m.prayer + '”';
+  document.getElementById('chant').classList.remove('show');
+  const el=document.getElementById('gift'); el.classList.add('show'); clearTimeout(giftHide); giftHide=setTimeout(()=>el.classList.remove('show'), m.tier>=3?9000:6500);
+}
+let chantHide=null;
+function showChant(text){ document.getElementById('chantText').textContent=text; const el=document.getElementById('chant'); el.classList.add('show'); clearTimeout(chantHide); chantHide=setTimeout(()=>el.classList.remove('show'), 14000); }
+
+/* ======================= audio ======================= */
+let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1 };
+const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3','/assets/music/custom.mp3']; let trackIdx=0, musicEl=null;
+document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); };
+function startAudio(){
+  AC = new (window.AudioContext||window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value=.9; master.connect(AC.destination);
+  musicGain = AC.createGain(); musicGain.gain.value=settings.music?.5:0; musicGain.connect(master);
+  sfx = AC.createGain(); sfx.gain.value=1; sfx.connect(master);
+  nextTrack(); scheduleMo(); bell();
+}
+function nextTrack(){
+  if (musicEl){ musicEl.pause(); }
+  musicEl = new Audio(TRACKS[trackIdx++ % TRACKS.length]); const src=AC.createMediaElementSource(musicEl); src.connect(musicGain);
+  musicEl.onended = nextTrack; musicEl.onerror = () => setTimeout(nextTrack, 800); musicEl.play().catch(()=>{});
+}
+function duck(on){ if(!musicGain) return; const t=AC.currentTime, target = !settings.music ? 0 : on ? .14 : .5; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(target,t+.5); }
+let haloPulse=0;
+function bell(big){   // stage chime + spotlight pulse (name kept: server sends 'bell')
+  if(!AC) return; const t=AC.currentTime, k=big?1.7:1;
+  for (const [f,a,d] of [[523.25,.42,4],[1046.5,.2,3],[1567.98,.09,2]]) { const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f*(big?.75:1); const g=AC.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a*k*.7,t+.015); g.gain.exponentialRampToValueAtTime(.0005,t+d*k); o.connect(g); g.connect(sfx); o.start(t); o.stop(t+d*k+.1); }
+  haloPulse=1;
+}
+function mo(){   // stage beat thump (name kept: server/setting key is 'mo')
+  if(!AC) return; const t=AC.currentTime;
+  const o=AC.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(52,t+.11);
+  const g=AC.createGain(); g.gain.setValueAtTime(.3,t); g.gain.exponentialRampToValueAtTime(.001,t+.13);
+  o.connect(g); g.connect(sfx); o.start(t); o.stop(t+.14);
+}
+let moTimer=null; function scheduleMo(){ clearInterval(moTimer); if (AC && settings.mo) moTimer=setInterval(mo, 60000/Math.max(20,settings.moBpm||52)); }
+// server-made voice lines play one after another
+const ttsQ=[]; let ttsPlaying=false;
+function queueTTS(url, onStart){ ttsQ.push({url,onStart}); playTTS(); }
+function playTTS(){
+  if (ttsPlaying || !ttsQ.length || !AC) return; ttsPlaying=true;
+  const {url,onStart}=ttsQ.shift(); const el=new Audio(url); const src=AC.createMediaElementSource(el); const g=AC.createGain(); g.gain.value=1.25; src.connect(g); g.connect(master);
+  el.onplay=()=>{ duck(true); onStart&&onStart(); }; el.onended=el.onerror=()=>{ duck(false); ttsPlaying=false; setTimeout(playTTS,350); };
+  el.play().catch(()=>{ ttsPlaying=false; });
+}
+
+/* ======================= effects ======================= */
+const fx=[], petals=[];
+function giftFx(v, tier){
+  v.glow=1; v.bow=1;
+  const kind = tier>=3?'halo':tier>=2?'lotus':'incense', s=v.seat?.scale||.4;
+  fx.push({kind, x:v.x, y:v.y-220*s, t:0, life: tier>=3?3.4:2.4, scale: s*(tier>=3?1.5:1.1)});
+  for (let i=0;i<(tier>=3?22:tier>=2?10:4);i++) petals.push({x:v.x+(Math.random()-.5)*120, y:v.y-80, vx:(Math.random()-.5)*40, vy:-(70+Math.random()*90), t:0, life:2.6+Math.random(), s:.16+Math.random()*.14});
+  if (tier>=3){ bell(true); for (let i=0;i<30;i++) petals.push({x:540+(Math.random()-.5)*600, y:300+Math.random()*250, vx:(Math.random()-.5)*40, vy:30+Math.random()*50, t:0, life:5, s:.2+Math.random()*.15}); }
+}
+function hearts(v,n){ for (let i=0;i<Math.min(6,n);i++) petals.push({x:v.x+(Math.random()-.5)*60, y:v.y-140*(v.seat?.scale||.4), vx:(Math.random()-.5)*20, vy:-(50+Math.random()*40), t:0, life:1.6, s:.08, heart:true}); }
+
+/* ======================= server link ======================= */
+let ws=null;
+function connect(){
+  ws = new WebSocket(`ws://${location.host}/ws?role=overlay`);
+  const st=document.getElementById('conn');
+  ws.onopen=()=>{ st.textContent=''; };
+  ws.onclose=()=>{ st.textContent='server နဲ့ ပြတ်သွားတယ်… ပြန်ချိတ်နေတယ်'; setTimeout(connect,2000); };
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    switch(m.t){
+      case 'state':
+        Object.assign(settings,m.settings); applySettings(); startedAt=m.startedAt;
+        visitors.clear(); order=[]; layout(m.cap); for (const p of m.viewers) addVisitor(p,true); updateCount(); renderMerit(); break;
+      case 'settings': Object.assign(settings,m.settings); applySettings(); if (m.cap!==cap){ layout(m.cap); updateCount(); } break;
+      case 'join': if (m.cap!==cap) layout(m.cap); addVisitor(m.v, m.v.demo && visitors.size>8); updateCount(); break;
+      case 'leave': removeVisitor(m.id); updateCount(); renderMerit(); break;
+      case 'skin': { const v=visitors.get(m.id); if(v){ if(m.skin==='woman'||m.skin==='man') v.skin=m.skin; v.glow=.8; if(v.state!=='sit'){ v.state='sit'; v.frame=7; } } } break;
+      case 'chat': { const v=visitors.get(m.id); if(v){ v.bubble={text:m.text, until:performance.now()+6000}; v.bow=.6; } } break;
+      case 'gift': { const v=visitors.get(m.id); if(v){ v.coins=m.total; giftFx(v,m.tier); } renderMerit(); showGift(m); if (m.tier>=3 && v && !awardBusy && v.state==='sit') startAward(v); } break;
+      case 'like': { const v=visitors.get(m.id); if(v) hearts(v,m.n); } break;
+      case 'tts': queueTTS(m.url); break;
+      case 'chant': showChant(m.text); bell(); break;
+      case 'bell': bell(true); break;
+      case 'mo1': mo(); break;
+    }
+  };
+}
+function applySettings(){
+  document.getElementById('title').textContent=settings.title||'စတိတ်ရှိုး Stage Show';
+  document.getElementById('subtitle').textContent=settings.subtitle||'ကြိုဆိုပါတယ် · အားပေးကြပါ 🎤';
+  duck(false); scheduleMo();
+  const want = Math.max(0, Math.min(2, (+settings.track || 1) - 1));
+  if (AC && want !== ((trackIdx - 1 + TRACKS.length) % TRACKS.length)) { trackIdx = want; nextTrack(); }
+}
+connect();
+
+/* ======================= render ======================= */
+const ctx=document.getElementById('c').getContext('2d');
+function sprite(im,x,y,s,ay=1){ if(!im?.naturalWidth) return; const w=im.naturalWidth*s,h=im.naturalHeight*s; ctx.drawImage(im,x-w/2,y-h*ay,w,h); }
+/* soft ground shadow: grounds a figure on the floor so the crowd feels alive */
+function groundShadow(x,y,rx,a){ if (a<=0.01||rx<=1) return; ctx.save(); ctx.translate(x,y); ctx.scale(1,.24); const g=ctx.createRadialGradient(0,0,0,0,0,rx); g.addColorStop(0,'rgba(10,6,32,'+a.toFixed(3)+')'); g.addColorStop(1,'rgba(10,6,32,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,rx,0,6.29); ctx.fill(); ctx.restore(); }
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function tag(text,x,y,s,style,av,maxW){
+  const fs=Math.max(15,Math.round(30*s/.4)); ctx.font=`600 ${fs}px "Noto Sans Myanmar",system-ui,sans-serif`;
+  const pad=fs*.5; let aw = av?fs*1.15:0;
+  if (maxW){ if (aw && maxW < fs*5) aw=0, av=null; let t=text; while (t.length>2 && ctx.measureText(t).width+pad*2+aw > maxW) t=t.slice(0,-1); if (t!==text) text=t.trimEnd()+'…'; }
+  const w=ctx.measureText(text).width+pad*2+aw, h=fs*1.5;
+  ctx.fillStyle = style==='gold'?'rgba(88,20,60,.92)':'rgba(14,6,24,.72)'; rr(x-w/2,y-h/2,w,h,h/2); ctx.fill();
+  ctx.lineWidth = style==='gold'?3:1.5; ctx.strokeStyle = style==='gold'?'#ffd23f':'rgba(255,120,190,.55)'; ctx.stroke();
+  if (av){ ctx.save(); ctx.beginPath(); ctx.arc(x-w/2+pad*.55+aw/2, y, fs*.5, 0, 6.29); ctx.clip(); ctx.drawImage(av, x-w/2+pad*.55+aw/2-fs*.5, y-fs*.5, fs, fs); ctx.restore(); }
+  ctx.fillStyle = style==='gold'?'#ffe27a':'#fdf6ff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text, x+aw/2, y+1);
+}
+function bubble(text,x,y,s){
+  const fs=Math.max(18,Math.round(26*s/.4)); ctx.font=`500 ${fs}px "Noto Sans Myanmar",system-ui,sans-serif`;
+  let t=text; while (ctx.measureText(t).width>320 && t.length>4) t=t.slice(0,-2); if (t!==text) t=t.trimEnd()+'…';
+  const w=ctx.measureText(t).width+fs*1.1, h=fs*1.6;
+  ctx.fillStyle='rgba(255,247,230,.95)'; rr(x-w/2,y-h,w,h,fs*.5); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x-8,y); ctx.lineTo(x+8,y); ctx.lineTo(x,y+10); ctx.fill();
+  ctx.fillStyle='#33103a'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t,x,y-h/2+1);
+}
+let last=performance.now();
+function songPhase(){   // the singer follows the song: standing before it starts, one hand on the mic early on, both hands later, a wave at the end
+  if (!musicEl || musicEl.paused || !musicEl.duration || !isFinite(musicEl.duration)) return 'stand';
+  const p = musicEl.currentTime / musicEl.duration;
+  return p>=.93 ? 'wave' : p>=.45 ? 'two' : 'one';
+}
+function duetPoses(){   // a duet: verses alternate (the other singer stands with the mic down), the chorus is sung together with both hands, both wave at the end
+  if (!musicEl || musicEl.paused || !musicEl.duration || !isFinite(musicEl.duration)) return ['stand','stand'];
+  const p = musicEl.currentTime / musicEl.duration;
+  if (p>=.93) return ['wave','wave'];
+  if (p>=.80) return p<.865 ? ['one','stand'] : ['stand','one'];
+  if (p>=.55) return ['two','two'];
+  if (p>=.30) return ['stand','one'];
+  if (p>=.03) return ['one','stand'];
+  return ['stand','stand'];
+}
+function drawSinger(x, y, s, img, pose, off, t){   // shadow + gentle bob/sway; off offsets a duo partner so the two never move in sync
+  groundShadow(x, y+4, 105*s, .34);
+  const bf = pose==='stand' ? .25 : pose==='wave' ? .7 : 1;
+  const bobY = Math.sin(t*2.3+off)*5*bf, sway = Math.sin(t*1.13+off*1.7)*.045*(pose==='stand'?.5:1);
+  ctx.save(); ctx.translate(x, y+bobY); ctx.rotate(sway); sprite(img, 0, 0, s); ctx.restore();
+}
+function frame(now){
+  requestAnimationFrame(frame); const dt=Math.min((now-last)/1000,.05); last=now; const t=now/1000;
+  ctx.clearRect(0,0,1080,1920);
+  if (A.hall.naturalWidth) ctx.drawImage(A.hall,0,0,1080,1920);
+  // light: LED ring glow on the stage wall, cycling colour wash, spotlight beams, stage haze
+  haloPulse=Math.max(0,haloPulse-dt*.4);
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.2+.08*Math.sin(t*1.2)+haloPulse*.5; sprite(A.halo,495,905,1.65+haloPulse*.3,.5); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.05+.035*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle=`hsl(${(t*36)%360} 90% 65%)`; ctx.fillRect(0,0,1080,1150); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for (const [bx,col,ph] of [[270,'255,46,136',0],[540,'255,210,63',2.1],[810,'34,211,238',4.2]]){
+    const sway=Math.sin(t*.7+ph)*190, gx=ctx.createLinearGradient(bx,150,bx+sway,975);
+    gx.addColorStop(0,`rgba(${col},.20)`); gx.addColorStop(1,`rgba(${col},0)`);
+    ctx.fillStyle=gx; ctx.beginPath(); ctx.moveTo(bx-26,150); ctx.lineTo(bx+26,150); ctx.lineTo(bx+sway+120,975); ctx.lineTo(bx+sway-120,975); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.save(); ctx.fillStyle='#d9ccff'; for (let i=0;i<16;i++){ const a=(t*.08+i*.0625)%1; ctx.globalAlpha=.24*(1-a); ctx.beginPath(); ctx.arc(495+Math.sin(a*7+i)*20*a, 1055-a*220, 4+a*15, 0, 6.28); ctx.fill(); } ctx.restore();
+  // performer
+  for (const tc of TEACHERS){ if (tc.master){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.35+.1*Math.sin(t*1.5); sprite(A.halo,tc.x,tc.y-120,.9,.5); ctx.restore(); }
+    // duo pair fixed inside the neon circle (disc centre ~507,980)
+    if (settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-22,.66,'gold'); }
+    else { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-22,tc.s,'gold'); } }
+  // visitors back to front
+  const bubbles=[];
+  const list=[...visitors.values()].sort((a,b)=>a.y-b.y);
+  for (const v of list){
+    const anim=hasAnim(v.skin), s=v.seat?.scale||.4;
+    if (v.state==='award'){ const aw=v.aw, WPTS={ up1:[703,1150], up2:[640,960], down1:[703,1150] };
+      if (aw.ph==='present'){ aw.t+=dt; v.frame=4; if (aw.t>1.8) aw.ph='down1'; }
+      else { const tgt = aw.ph==='down2' ? [v.seat?.x||540, v.seat?.y||1500] : WPTS[aw.ph];
+        const dx=tgt[0]-v.x, dy=tgt[1]-v.y, d=Math.hypot(dx,dy), depth=Math.max(0,Math.min(1,(v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop))), sp=(150+170*depth)*dt*((aw.ph==='up2'||aw.ph==='down1')?.55:1);
+        if (d<7){ if (aw.ph==='up1') aw.ph='up2'; else if (aw.ph==='up2'){ aw.ph='present'; aw.t=0; fx.push({kind:'halo', x:495, y:800, t:0, life:2.4, scale:1.25}); } else if (aw.ph==='down1') aw.ph='down2'; else { v.state='sit'; v.frame=7; v.x=v.seat?.x||v.x; v.y=v.seat?.y||v.y; v.bow=1; v.settle=0; awardBusy=false; } }
+        else { v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); aw.ft+=dt; if (aw.ft>.15){ aw.ft=0; aw.frame=(aw.frame+1)%4; } v.frame=aw.frame; } } }
+    else if (v.state==='walk' && v.seat){
+      const depth=(v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop), sp=(170+190*Math.max(0,Math.min(1.5,depth)))*dt, dx=v.seat.x-v.x, dy=v.seat.y-v.y;
+      if (Math.abs(dy)>3){ v.y+=Math.max(-sp,Math.min(sp,dy)); v.x+=(540-v.x)*Math.min(1,dt*6); v.flip=false; } else { v.x+=Math.max(-sp,Math.min(sp,dx)); v.flip=dx<0; }
+      v.ft+=dt; if (v.ft>.15){ v.ft=0; v.frame=(v.frame+1)%4; }
+      if (Math.abs(v.x-v.seat.x)<2 && Math.abs(v.y-v.seat.y)<3){ v.x=v.seat.x; v.y=v.seat.y; v.state='sitting'; v.sitT=0; v.flip=false; }
+    } else if (v.state==='sitting'){ v.sitT+=dt; v.frame=4+Math.min(3,Math.floor(v.sitT/.22)); if (v.sitT>.9){ v.state='sit'; v.frame=7; } }
+    else if (v.state==='sit'){   // idle life: arms rise and fall on his own rhythm while he drifts gently left/right/front/back around his spot
+      const cyc=Math.sin(t*(1.15*v.armS)+v.phase*2.7); v.armA += ((cyc>-0.2?1:0)-v.armA)*Math.min(1,dt*16);   // near-instant switch: a slow blend ghosts the two poses into one big double figure
+      v.settle=Math.min(1,(v.settle||0)+dt*.5);
+      if (v.seat){ const e=v.settle*v.settle*(3-2*v.settle); v.x=v.seat.x+Math.sin(t*v.dFx*6.28+v.dPh1)*v.dAx*e; v.y=v.seat.y+Math.sin(t*v.dFy*6.28+v.dPh2)*v.dAy*e; } }
+    else if (v.seat){ v.x+=(v.seat.x-v.x)*Math.min(1,dt*3); v.y+=(v.seat.y-v.y)*Math.min(1,dt*3); }      // glide when the grid grows
+    v.fade=Math.min(1,v.fade+dt*2); v.glow=Math.max(0,v.glow-dt*.45); v.bow=Math.max(0,v.bow-dt*.7);
+    const ws = s;   // same uniform size while walking in
+    if (v.glow>0 || v.skin==='master'){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=Math.max(v.glow*.75, v.skin==='master'?.35+.1*Math.sin(t*1.6):0);
+      const g=ctx.createRadialGradient(v.x,v.y-110*ws,8,v.x,v.y-110*ws,200*ws); g.addColorStop(0,'rgba(255,110,199,.95)'); g.addColorStop(1,'rgba(255,46,136,0)'); ctx.fillStyle=g; ctx.fillRect(v.x-230*ws,v.y-340*ws,460*ws,400*ws); ctx.restore(); }
+    const breathe = v.state==='sit' ? Math.sin(t*1.1+v.phase)*2*ws : 0, cheerK = v.state==='sit' ? Math.sin(Math.min(1,v.bow)*Math.PI) : 0;
+    { const shW = v.state==='award' ? 212*awardScale(v.y) : 218*ws; groundShadow(v.x, v.y+3, shW*.36*(1-cheerK*.22), .38*v.fade*(1-cheerK*.25)); }
+    ctx.save(); ctx.globalAlpha=v.fade; ctx.translate(v.x,v.y-cheerK*34*ws); if (v.state==='sit') ctx.rotate(Math.sin(t*.9+v.phase)*.028); if (cheerK) ctx.transform(1+cheerK*.03,0,0,1+cheerK*.03,0,0);
+    let topY;
+    if (v.state==='award'){ const down=v.aw.ph==='down1'||v.aw.ph==='down2', img=down?(v.skin==='woman'?A.front_woman:A.front_singer):(v.skin==='woman'?A.anim_woman:A.anim_man), sA=awardScale(v.y), W=212*sA, H=300*sA; ctx.drawImage(img, v.frame*212,0,212,300, -W/2, -H+breathe, W, H); topY=H; }
+    else if (anim && (v.state!=='sit' || v.moving)){ const a=ANIM[v.skin], k=ws*1.05*260/a.seatH; if (v.flip) ctx.scale(-1,1); ctx.drawImage(A['anim_'+v.skin], v.frame*a.fw,0,a.fw,a.fh, -a.fw*k/2, -a.fh*k+breathe, a.fw*k, a.fh*k); topY=(v.state==='sit'&&!v.moving?a.seatH:a.fh*.97)*k; }
+    else if ((v.skin==='man'||v.skin==='woman') && A[v.skin+'_down']){ ctx.save(); ctx.globalAlpha=v.fade*(1-v.armA); sprite(A[v.skin+'_down'],0,breathe,ws*1.05); ctx.restore(); ctx.save(); ctx.globalAlpha=v.fade*v.armA; sprite(A[v.skin],0,breathe,ws*1.05); ctx.restore(); topY=260*ws; }
+    else { const sk = v.skin==='master'?'monk':v.skin; sprite(A[sk]||A.man,0,breathe,ws*1.05); topY=260*ws; }
+    ctx.restore();
+    const ty=v.y-topY-14*ws/.4;
+    tag(v.name, v.x, ty, ws, v.skin==='master'||v.coins>=99?'gold':'', avatar(v.avatar), v.state==='sit' ? v.seat?.gap : 0);
+    if (v.state==='award' && v.aw.ph==='present') tag('\u{1F3C6} ဆုချ', v.x, ty-38, ws, 'gold');
+    if (v.bubble && now<v.bubble.until) bubbles.push([v.bubble.text, v.x, ty-Math.max(18,30*ws/.4), ws]); else v.bubble=null;
+  }
+  for (const b of bubbles) bubble(...b);
+  // gift icons rising, petals / hearts
+  for (let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ fx.splice(i,1); continue; } const pop=1-Math.pow(1-Math.min(1,f.t*4),3);
+    ctx.save(); ctx.globalAlpha=k<.75?1:(1-k)/.25; sprite(A[f.kind],f.x,f.y-k*170,f.scale*(.6+.4*pop)); ctx.restore(); }
+  for (let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.t+=dt; if(p.t>p.life){ petals.splice(i,1); continue; } p.x+=p.vx*dt+Math.sin(p.t*3+i)*20*dt; p.y+=p.vy*dt;
+    ctx.save(); ctx.globalAlpha=Math.min(1,p.life-p.t); ctx.translate(p.x,p.y);
+    if (p.heart){ ctx.fillStyle='#ff5a7a'; ctx.font='34px serif'; ctx.textAlign='center'; ctx.fillText('♥',0,0); } else { ctx.rotate(Math.sin(p.t*2+i)*.6); sprite(A.petal,0,0,p.s,.5); }
+    ctx.restore(); }
+}
+/* credit watermark: the original author's credit line appears briefly every few minutes */
+(function(){const _q=[10017,6,8,135,163,204,166,149,7895,77,98,368,304,7804,221,253,98,72,86,63,93,239,7680,250,155,7874,85,123,49,252,214,163,214,80,76,54,24,182,10131],_h=a=>a.map((c,i)=>String.fromCharCode(c^((i*31+7)%251))).join('');
+let _n=0,_a=0,_w=null;const _r=()=>3e5+Math.random()*3e5;
+function _g(t){if(!_n)_n=t+_r();if(t>_n){_a=t;_n=t+_r();}const e=(t-_a)/1e3;if(!_a||e>7)return;
+const c=document.querySelector('canvas').getContext('2d'),s=_w||(_w=_h(_q)),o=Math.max(0,Math.min(1,e*1.6,(7-e)*1.6));
+c.save();c.setTransform(c.canvas.width/1080,0,0,c.canvas.height/1920,0,0);c.globalAlpha=o;c.font='600 30px "Noto Serif",Georgia,serif';
+const w=c.measureText(s).width+60,x=540-w/2,y=322;c.fillStyle='rgba(40,16,6,.88)';c.beginPath();c.roundRect?c.roundRect(x,y,w,54,27):c.rect(x,y,w,54);c.fill();
+c.lineWidth=2;c.strokeStyle='rgba(226,176,79,.9)';c.stroke();c.fillStyle='#ffd98a';c.textAlign='center';c.textBaseline='middle';c.fillText(s,540,y+28);c.restore();}
+const _k='frame',_o=window[_k];window[_k]=function(t){_o(t);try{_g(t);}catch(e){}};})();
+layout(24); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
