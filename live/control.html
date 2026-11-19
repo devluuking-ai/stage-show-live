@@ -121,7 +121,7 @@ button.red{background:var(--red);border-color:#ff5c8a}
       <label>Beat အရှိန် (BPM)<input id="moBpm" type="number" min="20" max="120" value="52"></label>
       <label>ကြေညာချက် ကြားချိန် (မိနစ်)<input id="chantEveryMin" type="number" min="1" max="60" value="3"></label>
     </div>
-    <div class="row"><button id="btnBell">🎉 အထူးအသံ + စင်မီး</button><button id="btnMo">Beat တစ်ချက်</button></div>
+    <div class="row"><button id="btnBell">🎉 အထူးအသံ + စင်မီး</button><button id="btnMo">Beat တစ်ချက်</button><button id="btnIntro">📣 Intro ဖွင့်</button></div>
     <h2>စင် အပြင်အဆင်</h2>
     <label>ပွဲ နာမည်<input id="title" value="စတိတ်ရှိုး Stage Show"></label>
     <label>အောက်စာ<input id="subtitle" value="ကြိုဆိုပါတယ် · အားပေးကြပါ 🎤"></label>
@@ -189,6 +189,7 @@ $('botSkin').onchange = () => { if (!$('btnBots').textContent.includes('ဖွ�
 $('btnSay').onclick = () => send('say', { text: $('sayText').value });
 $('btnChant').onclick = () => send('chant');
 $('btnBell').onclick = () => send('bell');
+$('btnIntro').onclick = () => send('intro');
 $('btnMo').onclick = () => send('mo');
 for (const k of SETTING_IDS) $(k).addEventListener('change', () => send('settings', { settings: readSettings() }));
 $('performer').addEventListener('change', () => { $('voice').value = $('performer').value === 'male' ? 'my-MM-ThihaNeural' : 'my-MM-NilarNeural'; send('settings', { settings: readSettings() }); });

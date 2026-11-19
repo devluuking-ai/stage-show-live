@@ -179,6 +179,13 @@ function startAudio(){
   musicGain = AC.createGain(); musicGain.gain.value=settings.music?.5:0; musicGain.connect(master);
   sfx = AC.createGain(); sfx.gain.value=1; sfx.connect(master);
   nextTrack(); scheduleMo(); bell();
+  playIntro();
+}
+function playIntro(){   // welcome announcement: plays when the show starts, music ducks under it
+  if (!AC) return;
+  const el = new Audio('/assets/intro.mp3'); const src = AC.createMediaElementSource(el); const g = AC.createGain(); g.gain.value = 1.15; src.connect(g); g.connect(master);
+  el.onplay = () => duck(true); el.onended = el.onerror = () => duck(false);
+  el.play().catch(()=>{});
 }
 function nextTrack(){
   if (musicEl){ musicEl.pause(); }
@@ -243,6 +250,7 @@ function connect(){
       case 'tts': queueTTS(m.url); break;
       case 'chant': showChant(m.text); bell(); break;
       case 'bell': bell(true); break;
+      case 'intro': playIntro(); break;
       case 'mo1': mo(); break;
     }
   };

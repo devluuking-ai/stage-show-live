@@ -200,6 +200,7 @@ function onControl(m){
     case 'fill': fillDemo(clamp(m.n, 1, 100), ctlSkin(m)); addLog(`လူအတု ထည့်ပြီး: ${viewers.size} ယောက်`); break;
     case 'clear': clearSeats(); break;
     case 'bell': broadcast({ t:'bell' }); break;
+    case 'intro': broadcast({ t:'intro' }); break;
     case 'mo': broadcast({ t:'mo1' }); break;
     case 'chant': chant(); break;
     case 'say': if (m.text) say(String(m.text).slice(0, 400), { tag:'say' }); break;

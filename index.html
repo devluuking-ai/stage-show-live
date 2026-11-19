@@ -194,6 +194,9 @@ function audioStart(){
   musicGain = AC.createGain(); musicGain.gain.value=.55; musicGain.connect(master);
   playTrack(Math.floor(Math.random()*TRACKS.length));
   chime(); bellTimer=setInterval(chime, 60000); mokTimer=setInterval(beat, 1000);
+  const intro = new Audio('assets/intro.mp3'); const isrc = AC.createMediaElementSource(intro), ig = AC.createGain(); ig.gain.value = 1.1; isrc.connect(ig); ig.connect(master);
+  intro.onplay = () => setDuck(true); intro.onended = intro.onerror = () => setDuck(false);
+  intro.play().catch(()=>{});
 }
 function playTrack(i){
   trackIdx = (i+TRACKS.length)%TRACKS.length; const tr = TRACKS[trackIdx];
