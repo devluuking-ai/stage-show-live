@@ -19,15 +19,16 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
 #c{position:absolute;inset:0;width:1080px;height:1920px}
 .ui{position:absolute;z-index:3}
 /* title plaque */
-#plaque{left:90px;right:90px;top:70px;height:150px;border:3px solid var(--gold);border-radius:28px;
+#plaque{left:90px;right:90px;top:56px;display:flex;flex-direction:column;align-items:center;gap:14px}
+#title{position:relative;box-sizing:border-box;max-width:100%;border:3px solid var(--gold);border-radius:28px;padding:20px 96px;
   background:linear-gradient(180deg,rgba(84,16,64,.92),rgba(24,8,44,.92));box-shadow:0 0 0 6px rgba(0,0,0,.35),0 0 50px rgba(255,46,136,.30) inset;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
-#plaque::before,#plaque::after{content:"✦";position:absolute;top:50%;transform:translateY(-50%);font-size:44px;color:var(--gold)}
-#plaque::before{left:34px}#plaque::after{right:34px}
-#title{font-family:var(--display);font-weight:700;font-size:58px;letter-spacing:.06em;color:var(--gold2);text-transform:uppercase;text-shadow:0 2px 0 #2a0a3a,0 0 22px rgba(255,46,136,.5)}
-#subtitle{font-family:var(--display);font-size:30px;letter-spacing:.12em;color:var(--fg)}
+  font-family:var(--display);font-weight:700;font-size:52px;line-height:1.3;letter-spacing:.06em;color:var(--gold2);text-transform:uppercase;text-align:center;text-shadow:0 2px 0 #2a0a3a,0 0 22px rgba(255,46,136,.5)}
+#title::before,#title::after{content:"✦";position:absolute;top:50%;transform:translateY(-50%);font-size:44px;color:var(--gold)}
+#title::before{left:34px}#title::after{right:34px}
+#subtitle{box-sizing:border-box;max-width:100%;border:2px solid var(--line);border-radius:999px;padding:10px 34px;background:var(--panel);
+  font-family:var(--display);font-size:29px;line-height:1.3;letter-spacing:.12em;color:var(--fg);text-align:center}
 /* pills */
-#pills{top:244px;left:0;right:0;display:flex;justify-content:center;gap:26px}
+#pills{top:296px;left:0;right:0;display:flex;justify-content:center;gap:26px}
 .pill{background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:12px 28px;font-size:34px;font-weight:600;display:flex;align-items:center;gap:14px;font-variant-numeric:tabular-nums}
 .pill small{font-size:20px;font-weight:500;color:var(--muted);line-height:1.05}
 .dot{width:18px;height:18px;border-radius:50%;background:#46d36b;box-shadow:0 0 12px #46d36b}
@@ -319,8 +320,8 @@ function frame(now){
   // performer
   for (const tc of TEACHERS){ if (tc.master){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.35+.1*Math.sin(t*1.5); sprite(A.halo,tc.x,tc.y-120,.9,.5); ctx.restore(); }
     // duo pair fixed inside the neon circle (disc centre ~507,980)
-    if (settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-22,.66,'gold'); }
-    else { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-22,tc.s,'gold'); } }
+    if (settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-50,.66,'gold'); }
+    else { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-50,tc.s,'gold'); } }
   // visitors back to front
   const bubbles=[];
   const list=[...visitors.values()].sort((a,b)=>a.y-b.y);
