@@ -92,8 +92,7 @@ addEventListener('resize', fit); fit();
 /* ======================= assets ======================= */
 const A = {};
 const IMG = { hall:'/assets/hall.jpg', monk:'/assets/c_monk.png', nun:'/assets/c_nun.png', granny:'/assets/c_granny.png', man:'/assets/c_man.png', man_down:'/assets/c_man_down.png',
-  woman:'/assets/c_woman.png', woman_down:'/assets/c_woman_down.png', child:'/assets/c_child.png', performer_female:'/assets/performer_female.png', performer_female_stand:'/assets/performer_female_stand.png', performer_female_one:'/assets/performer_female_one.png', performer_female_two:'/assets/performer_female_two.png', performer_female_wave:'/assets/performer_female_wave.png', performer_male:'/assets/performer_male.png', performer_male_stand:'/assets/performer_male_stand.png', performer_male_one:'/assets/performer_male_one.png', performer_male_two:'/assets/performer_male_two.png', performer_male_wave:'/assets/performer_male_wave.png', anim_man:'/assets/anim_man.png', anim_woman:'/assets/anim_woman.png', anim_granny:'/assets/anim_granny.png', front_singer:'/assets/front_singer.png', front_woman:'/assets/front_woman.png',
-  lotus:'/assets/fx_lotus.png', halo:'/assets/fx_halo.png', bell:'/assets/fx_bell.png', incense:'/assets/fx_incense.png', petal:'/assets/fx_petal.png' };
+  woman:'/assets/c_woman.png', woman_down:'/assets/c_woman_down.png', child:'/assets/c_child.png', performer_female:'/assets/performer_female.png', performer_female_stand:'/assets/performer_female_stand.png', performer_female_one:'/assets/performer_female_one.png', performer_female_two:'/assets/performer_female_two.png', performer_female_wave:'/assets/performer_female_wave.png', performer_male:'/assets/performer_male.png', performer_male_stand:'/assets/performer_male_stand.png', performer_male_one:'/assets/performer_male_one.png', performer_male_two:'/assets/performer_male_two.png', performer_male_wave:'/assets/performer_male_wave.png', anim_man:'/assets/anim_man.png', anim_woman:'/assets/anim_woman.png', anim_granny:'/assets/anim_granny.png', front_singer:'/assets/front_singer.png', front_woman:'/assets/front_woman.png', };
 for (const [k,src] of Object.entries(IMG)){ const im=new Image(); im.src=src; A[k]=im; }
 const ANIM = { man:{fw:212,fh:300,seatH:252}, woman:{fw:212,fh:300,seatH:220}, granny:{fw:195,fh:300,seatH:222} };
 const hasAnim = k => ANIM[k] && A['anim_'+k]?.naturalWidth > 0;
@@ -135,7 +134,7 @@ const TEACHERS = [ { name:'🎤 အဆိုတော်', skin:'performer', x:4
 
 function addVisitor(p, instant){
   let _h=0; const _nm=String(p.name||p.id||''); for (let i=0;i<_nm.length;i++) _h=(_h*31+_nm.charCodeAt(i))>>>0;
-  p = { ...p, skin: _h%2 ? 'woman' : 'man' };   // neon crowd: man + woman, fixed per person by name
+  p = { ...p, skin: (p.skin==='man'||p.skin==='woman') ? p.skin : (_h%2 ? 'woman' : 'man') };   // control/server-chosen gender wins; otherwise man + woman by name
   if (visitors.has(p.id)) { Object.assign(visitors.get(p.id), { name:p.name, skin:p.skin, avatar:p.avatar, coins:p.coins }); return; }
   const v = { ...p, state:'walk', x:540, y:2020, tx:0, ty:0, frame:0, ft:0, sitT:0, flip:false, fade:0, bubble:null, glow:0, bow:0, phase:Math.random()*6.28, armA:Math.random(), armS:.6+Math.random()*.9, wanderT:2+Math.random()*6, moving:false, wx:0, wy:0, settle:0, dPh1:Math.random()*6.28, dPh2:Math.random()*6.28, dAx:14+Math.random()*16, dAy:8+Math.random()*10, dFx:.05+Math.random()*.05, dFy:.04+Math.random()*.05 };
   visitors.set(p.id, v); order.push(p.id); reseat();
@@ -174,7 +173,9 @@ const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3','/assets/mus
 document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); };
 function startAudio(){
   AC = new (window.AudioContext||window.webkitAudioContext)();
-  master = AC.createGain(); master.gain.value=.9; master.connect(AC.destination);
+  master = AC.createGain(); master.gain.value=.9;
+  const comp = AC.createDynamicsCompressor(); comp.threshold.value=-16; comp.knee.value=24; comp.ratio.value=5; comp.attack.value=.004; comp.release.value=.24;
+  master.connect(comp); comp.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value=settings.music?.5:0; musicGain.connect(master);
   sfx = AC.createGain(); sfx.gain.value=1; sfx.connect(master);
   nextTrack(); scheduleMo(); bell();
@@ -184,7 +185,7 @@ function nextTrack(){
   musicEl = new Audio(TRACKS[trackIdx++ % TRACKS.length]); const src=AC.createMediaElementSource(musicEl); src.connect(musicGain);
   musicEl.onended = nextTrack; musicEl.onerror = () => setTimeout(nextTrack, 800); musicEl.play().catch(()=>{});
 }
-function duck(on){ if(!musicGain) return; const t=AC.currentTime, target = !settings.music ? 0 : on ? .14 : .5; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(target,t+.5); }
+function duck(on){ if(!musicGain) return; const t=AC.currentTime, target = !settings.music ? 0 : on ? .14 : .5; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(target,t+1.1); }
 let haloPulse=0;
 function bell(big){   // stage chime + spotlight pulse (name kept: server sends 'bell')
   if(!AC) return; const t=AC.currentTime, k=big?1.7:1;
@@ -212,7 +213,7 @@ function playTTS(){
 const fx=[], petals=[];
 function giftFx(v, tier){
   v.glow=1; v.bow=1;
-  const kind = tier>=3?'halo':tier>=2?'lotus':'incense', s=v.seat?.scale||.4;
+  const kind = 'spark', s=v.seat?.scale||.4;
   fx.push({kind, x:v.x, y:v.y-220*s, t:0, life: tier>=3?3.4:2.4, scale: s*(tier>=3?1.5:1.1)});
   for (let i=0;i<(tier>=3?22:tier>=2?10:4);i++) petals.push({x:v.x+(Math.random()-.5)*120, y:v.y-80, vx:(Math.random()-.5)*40, vy:-(70+Math.random()*90), t:0, life:2.6+Math.random(), s:.16+Math.random()*.14});
   if (tier>=3){ bell(true); for (let i=0;i<30;i++) petals.push({x:540+(Math.random()-.5)*600, y:300+Math.random()*250, vx:(Math.random()-.5)*40, vy:30+Math.random()*50, t:0, life:5, s:.2+Math.random()*.15}); }
@@ -307,7 +308,7 @@ function frame(now){
   if (A.hall.naturalWidth) ctx.drawImage(A.hall,0,0,1080,1920);
   // light: LED ring glow on the stage wall, cycling colour wash, spotlight beams, stage haze
   haloPulse=Math.max(0,haloPulse-dt*.4);
-  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.2+.08*Math.sin(t*1.2)+haloPulse*.5; sprite(A.halo,495,905,1.65+haloPulse*.3,.5); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.2+.08*Math.sin(t*1.2)+haloPulse*.5; ctx.strokeStyle='#ff5ad2'; ctx.lineWidth=13; ctx.shadowColor='#ff2e88'; ctx.shadowBlur=34; ctx.beginPath(); ctx.ellipse(495,905,200+haloPulse*26,100+haloPulse*13,0,0,6.29); ctx.stroke(); ctx.restore();
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.05+.035*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle=`hsl(${(t*36)%360} 90% 65%)`; ctx.fillRect(0,0,1080,1150); ctx.restore();
   ctx.save(); ctx.globalCompositeOperation='lighter';
   for (const [bx,col,ph] of [[270,'255,46,136',0],[540,'255,210,63',2.1],[810,'34,211,238',4.2]]){
@@ -318,7 +319,7 @@ function frame(now){
   ctx.restore();
   ctx.save(); ctx.fillStyle='#d9ccff'; for (let i=0;i<16;i++){ const a=(t*.08+i*.0625)%1; ctx.globalAlpha=.24*(1-a); ctx.beginPath(); ctx.arc(495+Math.sin(a*7+i)*20*a, 1055-a*220, 4+a*15, 0, 6.28); ctx.fill(); } ctx.restore();
   // performer
-  for (const tc of TEACHERS){ if (tc.master){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.35+.1*Math.sin(t*1.5); sprite(A.halo,tc.x,tc.y-120,.9,.5); ctx.restore(); }
+  for (const tc of TEACHERS){ if (tc.master){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.35+.1*Math.sin(t*1.5); ctx.strokeStyle='#ff5ad2'; ctx.lineWidth=9; ctx.shadowColor='#ff2e88'; ctx.shadowBlur=26; ctx.beginPath(); ctx.ellipse(tc.x,tc.y-120,112,56,0,0,6.29); ctx.stroke(); ctx.restore(); }
     // duo pair fixed inside the neon circle (disc centre ~507,980)
     if (settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-50,.66,'gold'); }
     else { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-50,tc.s,'gold'); } }
@@ -331,7 +332,7 @@ function frame(now){
       if (aw.ph==='present'){ aw.t+=dt; v.frame=4; if (aw.t>1.8) aw.ph='down1'; }
       else { const tgt = aw.ph==='down2' ? [v.seat?.x||540, v.seat?.y||1500] : WPTS[aw.ph];
         const dx=tgt[0]-v.x, dy=tgt[1]-v.y, d=Math.hypot(dx,dy), depth=Math.max(0,Math.min(1,(v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop))), sp=(150+170*depth)*dt*((aw.ph==='up2'||aw.ph==='down1')?.55:1);
-        if (d<7){ if (aw.ph==='up1') aw.ph='up2'; else if (aw.ph==='up2'){ aw.ph='present'; aw.t=0; fx.push({kind:'halo', x:495, y:800, t:0, life:2.4, scale:1.25}); } else if (aw.ph==='down1') aw.ph='down2'; else { v.state='sit'; v.frame=7; v.x=v.seat?.x||v.x; v.y=v.seat?.y||v.y; v.bow=1; v.settle=0; awardBusy=false; } }
+        if (d<7){ if (aw.ph==='up1') aw.ph='up2'; else if (aw.ph==='up2'){ aw.ph='present'; aw.t=0; fx.push({kind:'spark', x:495, y:800, t:0, life:2.4, scale:1.25}); } else if (aw.ph==='down1') aw.ph='down2'; else { v.state='sit'; v.frame=7; v.x=v.seat?.x||v.x; v.y=v.seat?.y||v.y; v.bow=1; v.settle=0; awardBusy=false; } }
         else { v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); aw.ft+=dt; if (aw.ft>.15){ aw.ft=0; aw.frame=(aw.frame+1)%4; } v.frame=aw.frame; } } }
     else if (v.state==='walk' && v.seat){
       const depth=(v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop), sp=(170+190*Math.max(0,Math.min(1.5,depth)))*dt, dx=v.seat.x-v.x, dy=v.seat.y-v.y;
@@ -365,10 +366,12 @@ function frame(now){
   for (const b of bubbles) bubble(...b);
   // gift icons rising, petals / hearts
   for (let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ fx.splice(i,1); continue; } const pop=1-Math.pow(1-Math.min(1,f.t*4),3);
-    ctx.save(); ctx.globalAlpha=k<.75?1:(1-k)/.25; sprite(A[f.kind],f.x,f.y-k*170,f.scale*(.6+.4*pop)); ctx.restore(); }
+    ctx.save(); ctx.globalAlpha=k<.75?1:(1-k)/.25; const R=(30+95*pop)*f.scale*1.7, cy=f.y-k*170; ctx.globalCompositeOperation='lighter';
+      for (let j=0;j<8;j++){ const a=j*Math.PI/4+k*1.3; ctx.strokeStyle=j%2?'#ffd23f':'#ff5ad2'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(f.x+Math.cos(a)*R*.35, cy+Math.sin(a)*R*.35); ctx.lineTo(f.x+Math.cos(a)*R, cy+Math.sin(a)*R); ctx.stroke(); }
+      ctx.fillStyle='#fff3b0'; ctx.beginPath(); ctx.arc(f.x,cy,R*.15,0,6.29); ctx.fill(); ctx.restore(); }
   for (let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.t+=dt; if(p.t>p.life){ petals.splice(i,1); continue; } p.x+=p.vx*dt+Math.sin(p.t*3+i)*20*dt; p.y+=p.vy*dt;
     ctx.save(); ctx.globalAlpha=Math.min(1,p.life-p.t); ctx.translate(p.x,p.y);
-    if (p.heart){ ctx.fillStyle='#ff5a7a'; ctx.font='34px serif'; ctx.textAlign='center'; ctx.fillText('♥',0,0); } else { ctx.rotate(Math.sin(p.t*2+i)*.6); sprite(A.petal,0,0,p.s,.5); }
+    if (p.heart){ ctx.fillStyle='#ff5a7a'; ctx.font='34px serif'; ctx.textAlign='center'; ctx.fillText('♥',0,0); } else { ctx.rotate(Math.sin(p.t*2+i)*.6); ctx.fillStyle='#ff7ab0'; ctx.beginPath(); ctx.ellipse(0,0,150*p.s,65*p.s,0,0,6.29); ctx.fill(); }
     ctx.restore(); }
 }
 /* credit watermark: the original author's credit line appears briefly every few minutes */

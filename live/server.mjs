@@ -56,7 +56,7 @@ function skinFromText(t){
   for (const [skin, words] of SKIN_WORDS) if (words.some(k => w === k || w.startsWith(k + ' '))) return skin;
   return null;
 }
-const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man', 'granny'];
+const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man'];
 
 function pub(v){ return { id:v.id, name:v.name, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo }; }
 function snapshot(){ return { t:'state', settings, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
@@ -179,23 +179,25 @@ async function disconnectTikTok(){ if (tiktok){ try { await tiktok.disconnect();
 
 /* ------------------------------------------------------------- test data */
 const DEMO_NAMES = ['သူရိန်','မေသူ','ခင်လေး','အေးမြတ်','စိုးစိုး','နှင်းနှင်း','ကျော်ကျော်','ဇင်မာ','ဖြူဖြူ','သက်ထား','ဝင်းဝင်း','မိုးမိုး','စံပယ်','ချယ်ရီ','နန်းနန်း','ထွန်းထွန်း','လဲ့လဲ့','ဆုဆု','ခိုင်ခိုင်','မျိုးမျိုး','ဥမ္မာ','သဲသဲ','အိအိ','ထူးထူး','ပိုင်ပိုင်','ရဲရဲ','စန္ဒာ','သော်တာ','မြတ်နိုး','အေးအေး','ကိုကို','မမ'];
-function fillDemo(n){
+function fillDemo(n, skin){
   const have = [...viewers.values()].filter(v => v.demo).length;
   for (let i = have; i < n && viewers.size < 100; i++){
     const name = DEMO_NAMES[i % DEMO_NAMES.length] + (i >= DEMO_NAMES.length ? ' ' + (Math.floor(i / DEMO_NAMES.length) + 1) : '');
-    seat('demo_' + i, name, { demo: true, skin: ['man','woman','woman','man','granny','woman','child','man'][i % 8] });
+    seat('demo_' + i, name, { demo: true, skin: skin || ['man','woman','woman','man'][i % 4] });
   }
 }
 function clearSeats(){ viewers.clear(); broadcast(snapshot()); addLog('ပရိသတ်ခုံ အားလုံး ရှင်းလိုက်ပြီ'); }
 
 /* ------------------------------------------------------------- control */
+const ctlSkin = m => (m.skin === 'man' || m.skin === 'woman') ? m.skin : undefined;
+function applyCtlSkin(id, m){ const sk = ctlSkin(m); if (!sk) return; const v = viewers.get(id); if (v && v.skin !== sk){ v.skin = sk; broadcast({ t:'join', v: pub(v), cap: capacity() }); } }
 function onControl(m){
   switch (m.cmd){
     case 'connect': connectTikTok(m.uniqueId); break;
     case 'disconnect': disconnectTikTok(); addLog('TikTok ချိတ်ဆက်မှု ဖြုတ်လိုက်ပြီ'); break;
-    case 'chat': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onChat('sim_' + n, n, String(m.text || 'အရမ်းမိုက်တယ် 👏').slice(0, 120)); break; }
-    case 'gift': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onGift('sim_' + n, n, String(m.gift || 'နှင်းဆီ').slice(0, 30), clamp(m.count, 1, 99), clamp(m.diamonds, 1, 50000)); break; }
-    case 'fill': fillDemo(clamp(m.n, 1, 100)); addLog(`လူအတု ထည့်ပြီး: ${viewers.size} ယောက်`); break;
+    case 'chat': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onChat('sim_' + n, n, String(m.text || 'အရမ်းမိုက်တယ် 👏').slice(0, 120)); applyCtlSkin('sim_' + n, m); break; }
+    case 'gift': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onGift('sim_' + n, n, String(m.gift || 'နှင်းဆီ').slice(0, 30), clamp(m.count, 1, 99), clamp(m.diamonds, 1, 50000)); applyCtlSkin('sim_' + n, m); break; }
+    case 'fill': fillDemo(clamp(m.n, 1, 100), ctlSkin(m)); addLog(`လူအတု ထည့်ပြီး: ${viewers.size} ယောက်`); break;
     case 'clear': clearSeats(); break;
     case 'bell': broadcast({ t:'bell' }); break;
     case 'mo': broadcast({ t:'mo1' }); break;
@@ -204,7 +206,7 @@ function onControl(m){
     case 'settings':
       applySettings(m.settings || {});
       scheduleChant(); broadcast({ t:'settings', settings, cap: capacity() }); break;
-    case 'bots': setBots(!!m.on, +m.n || 12, m.pace); break;
+    case 'bots': setBots(!!m.on, +m.n || 12, m.pace, ctlSkin(m)); break;
   }
 }
 
@@ -225,11 +227,12 @@ function applySettings(o){ for (const [k, fn] of Object.entries(SETTING_RULES)) 
 let botTimer = null;
 const BOT_LINES = ['အရမ်းမိုက်တယ် 👏', 'နောက်တစ်ပုဒ်! နောက်တစ်ပုဒ်!', 'အားပေးနေတယ် ❤️', 'မိန်းကလေး', 'ယောက်ျား', 'အဘွား',
   'အသံက ကောင်းလိုက်တာ', 'အားလုံး ပျော်ရွှင်ကြပါစေ', 'ကလေး', 'Like လုပ်ထားတယ် 👍', 'ပျော်စရာကြီး', 'ကျေးဇူးပါ'];
-function setBots(on, n, pace){
+function setBots(on, n, pace, skin){
   clearInterval(botTimer); botTimer = null;
   if (on){
     n = clamp(n, 1, 100);
-    for (let i = 0; i < n; i++) seat('bot_' + i, DEMO_NAMES[(i + 7) % DEMO_NAMES.length] + ' ·bot', { demo: true });
+    for (const id of [...viewers.keys()]) if (id.startsWith('bot_')) { viewers.delete(id); broadcast({ t:'leave', id }); }
+    for (let i = 0; i < n; i++) seat('bot_' + i, DEMO_NAMES[(i + 7) % DEMO_NAMES.length] + ' ·bot', { demo: true, ...(skin ? { skin } : {}) });
     const every = { slow: 4000, mid: 1800, fast: 700 }[pace] || 1800;
     botTimer = setInterval(() => {
       const ids = [...viewers.keys()].filter(id => id.startsWith('bot_')); if (!ids.length) return;
