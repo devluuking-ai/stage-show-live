@@ -87,16 +87,42 @@ function onChat(id, name, text, avatar){
   broadcast({ t:'chat', id, name: v.name, text });
 }
 
+/* TikTok gift catalog (guide values): English name (as TikTok reports it) -> Burmese label + emoji + coins */
+const GIFT_CATALOG = [
+  { en:'TikTok Universe', my:'ယူနီဗာစ်', emoji:'🪐', coins:44999 },
+  { en:'Lion', my:'ခြင်္သေ့', emoji:'🦁', coins:29999 },
+  { en:'Rosa Nebula', my:'နက်ဗျူလာ', emoji:'💫', coins:15000 },
+  { en:'Interstellar', my:'အင်တာစတယ်လာ', emoji:'🚀', coins:10000 },
+  { en:'Sports Car', my:'စပোর্ঐ်ကား', emoji:'🏎️', coins:7000 },
+  { en:'Flying Jets', my:'ဂျက်လေယာဉ်', emoji:'✈️', coins:5000 },
+  { en:'Leon the Kitten', my:'ကြောင်လေး', emoji:'🐱', coins:4888 },
+  { en:'Meteor Shower', my:'ဥက္ကာပျံ', emoji:'☄️', coins:3000 },
+  { en:'Whale Diving', my:'ဝေလငါး', emoji:'🐳', coins:2150 },
+  { en:'Galaxy', my:'ဂလက်ဆီ', emoji:'🌌', coins:1000 },
+  { en:'Swan', my:'ဟင်္သာ', emoji:'🦢', coins:699 },
+  { en:'Money Gun', my:'ပိုက်ဆံသေနတ်', emoji:'💸', coins:500 },
+  { en:'Corgi', my:'ကော်ဂီ', emoji:'🐶', coins:299 },
+  { en:'Hearts', my:'အသဲများ', emoji:'💖', coins:199 },
+  { en:'Hand Heart', my:'လက်အသဲ', emoji:'🫶', coins:100 },
+  { en:'Doughnut', my:'ဒိုးနတ်', emoji:'🍩', coins:30 },
+  { en:'Rosa', my:'ရိုဆာ', emoji:'🌷', coins:10 },
+  { en:'Rose', my:'နှင်းဆီ', emoji:'🌹', coins:1 },
+  { en:'Heart Me', my:'အသဲပေး', emoji:'🧡', coins:1 },
+  { en:'Crown', my:'သရဖူ', emoji:'👑', coins:199 },
+  { en:'Bouquet', my:'ပန်းစည်း', emoji:'💐', coins:30 },
+];
 function onGift(id, name, giftName, count, diamonds, avatar){
   giftName = String(giftName || 'လက်ဆောင်').slice(0, 30); count = Math.max(1, Math.min(9999, +count || 1));
+  const gInfo = GIFT_CATALOG.find(g => g.en === giftName || g.my === giftName) || null;
+  const gLabel = gInfo ? gInfo.my : giftName, gEmoji = gInfo ? gInfo.emoji : '🎁';
   const { v } = seat(id, name, { avatar });
   if (!v) return;
   const coins = Math.max(1, (diamonds || 1) * (count || 1));
   v.coins += coins;
   const prayer = (v.lastText && Date.now() - v.lastTextAt < 90_000 && v.lastText.length > 6) ? v.lastText : pickThanks();
   const tier = coins >= 99 ? 3 : coins >= 10 ? 2 : 1;
-  const line = `ကျေးဇူးအများကြီး တင်ပါတယ်။ ${spoken(v.name)} မှ ${giftName} ကို${count > 1 ? ' ' + count + ' ကြိမ်' : ''} ပို့ပြီး အားပေးသွားပါတယ်။ ${prayer}`;
-  broadcast({ t:'gift', id, name: v.name, giftName, count, coins, total: v.coins, tier, prayer });
+  const line = `ကျေးဇူးအများကြီး တင်ပါတယ်။ ${spoken(v.name)} မှ ${gLabel} ကို${count > 1 ? ' ' + count + ' ကြိမ်' : ''} ပို့ပြီး အားပေးသွားပါတယ်။ ${prayer}`;
+  broadcast({ t:'gift', id, name: v.name, giftName: gLabel, emoji: gEmoji, count, coins, total: v.coins, tier, prayer });
   if (settings.gifts.readAll || coins >= settings.gifts.minDiamonds) say(line, { tag:'gift', id });
 }
 

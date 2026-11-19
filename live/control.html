@@ -75,9 +75,7 @@ button.red{background:var(--red);border-color:#ff5c8a}
     <select id="simSkin"><option value="auto">အလိုအလျောက် (ရော)</option><option value="man">ယောက်ျား</option><option value="woman">မိန်းကလေး</option></select>
     <div class="row"><button id="btnChat">Comment ပို့မယ်</button></div>
     <div class="row">
-      <button data-gift="နှင်းဆီ" data-dia="1">နှင်းဆီ 🌹 · 1</button>
-      <button data-gift="ပန်းစည်း" data-dia="30">ပန်းစည်း 💐 · 30</button>
-      <button data-gift="သရဖူ" data-dia="199">သရဖူ 👑 · 199</button>
+      <span id="giftGrid" style="display:flex;flex-wrap:wrap;gap:6px"></span>
       <label>အရေအတွက် <input id="simCount" type="number" min="1" max="99" value="1" style="width:72px"></label>
     </div>
     <p class="hint"><b>ယောက်ျား · မိန်းကလေး · အဘွား · ကလေး · ဘုန်းကြီး · သီလရှင် · vip</b> လို့ comment ရေးရင် အရုပ် ပြောင်းတယ်။</p>
@@ -182,6 +180,8 @@ $('uid').onkeydown = e => { if (e.key==='Enter') send('connect', { uniqueId: $('
 $('btnDisconnect').onclick = () => send('disconnect');
 $('btnOverlay').onclick = () => window.open('/live/overlay.html', 'overlay916', 'width=540,height=960');
 $('btnChat').onclick = () => send('chat', { name: $('simName').value, text: $('simText').value, skin: $('simSkin').value });
+const GIFTS = [['နှင်းဆီ','🌹',1],['အသဲပေး','🧡',1],['ရိုဆာ','🌷',10],['ဒိုးနတ်','🍩',30],['ပန်းစည်း','💐',30],['လက်အသဲ','🫶',100],['အသဲများ','💖',199],['သရဖူ','👑',199],['ကော်ဂီ','🐶',299],['ပိုက်ဆံသေနတ်','💸',500],['ဟင်္သာ','🦢',699],['ဂလက်ဆီ','🌌',1000],['ဝေလငါး','🐳',2150],['ဥက္ကာပျံ','☄️',3000],['ကြောင်လေး','🐱',4888],['ဂျက်လေယာဉ်','✈️',5000],['စပোর্ঐ်ကား','🏎️',7000],['အင်တာစတယ်လာ','🚀',10000],['နက်ဗျူလာ','💫',15000],['ခြင်္သေ့','🦁',29999],['ယူနီဗာစ်','🪐',44999]];
+for (const [g,e,c] of GIFTS){ const b=document.createElement('button'); b.dataset.gift=g; b.dataset.dia=c; b.textContent=g+' '+e+' · '+c; $('giftGrid').appendChild(b); }
 document.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => send('gift', { name: $('simName').value, gift: b.dataset.gift, diamonds: +b.dataset.dia, count: Math.max(1, Math.min(99, +$('simCount').value || 1)), skin: $('simSkin').value }));
 document.querySelectorAll('[data-fill]').forEach(b => b.onclick = () => send('fill', { n: +b.dataset.fill, skin: $('simSkin').value }));
 $('btnClear').onclick = () => send('clear');

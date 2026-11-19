@@ -266,6 +266,7 @@ function donate(v, coins, kind, text){
   for (let i=0;i<(big?18:coins>=20?8:3);i++) floaters.push({ x:v.seat.x+(Math.random()-.5)*160*v.seat.scale, y:v.seat.y-60, vx:(Math.random()-.5)*30, vy:-(60+Math.random()*80), t:0, life:2.5+Math.random(), s:.18+Math.random()*.15 });
   if (big){ chime(true); for (let i=0;i<24;i++) floaters.push({ x:SW/2+(Math.random()-.5)*500, y:300+Math.random()*300, vx:(Math.random()-.5)*40, vy:20+Math.random()*40, t:0, life:4, s:.2+Math.random()*.15, down:true }); }
   const label = coins>=99?'သရဖူ':coins>=20?'ပန်းစည်း':coins>=5?'မီးရှူးပန်း':'နှင်းဆီ';
+  v.giftTag = { text: ({'နှင်းဆီ':'🌹','မီးရှူးပန်း':'✨','ပန်းစည်း':'💐','သရဖူ':'👑'}[label]||'🎁')+' '+label, until: performance.now()+3000 };
   say(v.name, ` က ${label} ပို့လိုက်တယ် ×${coins}` + (text?` · "${text}"`:''), true);
   showToast(`${v.name} က ${label} ပို့တယ်` + (text?` — ${text}`:''));
   ttsSpeak(`${v.name} က ${label} ပို့ပါတယ်။ ${text||''}`);
@@ -379,6 +380,7 @@ function tick(now){
     else { drawSprite(A[v.skin]||A.man, 0, breathe, s*1.05, 1); tagH = 268*s; }
     ctx.restore();
     nameTag(v.name, v.x, v.y - tagH - 10*s, s, v.isMe);
+    if (v.giftTag && performance.now() < v.giftTag.until) nameTag(v.giftTag.text, v.x, v.y - tagH - 10*s - (36*s+16), s, true);
   }
   // gift fx
   for (let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ fx.splice(i,1); continue; }

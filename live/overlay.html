@@ -160,7 +160,7 @@ let awardBusy=false, awardSince=0;   // a giver award walk is in progress
 const awardQueue=[];   // crown givers waiting for their award walk (starts once they are seated)
 function showGift(m){
   document.getElementById('giftWho').textContent = m.name;
-  document.getElementById('giftWhat').textContent = `${m.giftName}${m.count>1?' ×'+m.count:''} ပို့ပြီး အားပေးတယ် · စုစုပေါင်း ${m.total} ✦`;
+  document.getElementById('giftWhat').textContent = `${m.emoji?m.emoji+' ':''}${m.giftName}${m.count>1?' ×'+m.count:''} ပို့ပြီး အားပေးတယ် · စုစုပေါင်း ${m.total} ✦`;
   document.getElementById('giftPray').textContent = '“' + m.prayer + '”';
   document.getElementById('chant').classList.remove('show');
   const el=document.getElementById('gift'); el.classList.add('show'); clearTimeout(giftHide); giftHide=setTimeout(()=>el.classList.remove('show'), m.tier>=3?9000:6500);
@@ -246,7 +246,7 @@ function connect(){
       case 'leave': { const lv=visitors.get(m.id); if (lv && lv.state==='award') awardBusy=false; removeVisitor(m.id); updateCount(); renderMerit(); } break;
       case 'skin': { const v=visitors.get(m.id); if(v){ if(m.skin==='woman'||m.skin==='man') v.skin=m.skin; v.glow=.8; if(v.state!=='sit'){ v.state='sit'; v.frame=7; } } } break;
       case 'chat': { const v=visitors.get(m.id); if(v){ v.bubble={text:m.text, until:performance.now()+6000}; v.bow=.6; } } break;
-      case 'gift': { const v=visitors.get(m.id); if(v){ v.coins=m.total; giftFx(v,m.tier); } renderMerit(); showGift(m); if (m.tier>=3 && v && !awardQueue.includes(m.id)) awardQueue.push(m.id); } break;
+      case 'gift': { const v=visitors.get(m.id); if(v){ v.coins=m.total; giftFx(v,m.tier); v.giftTag = { text:(m.emoji||'🎁')+' '+(m.giftName||'လက်ဆောင်'), until: performance.now()+3000 }; } renderMerit(); showGift(m); if (m.tier>=3 && v && !awardQueue.includes(m.id)) awardQueue.push(m.id); } break;
       case 'like': { const v=visitors.get(m.id); if(v) hearts(v,m.n); } break;
       case 'tts': queueTTS(m.url); break;
       case 'chant': showChant(m.text); bell(); break;
@@ -373,6 +373,7 @@ function frame(now){
     const ty=v.y-topY-14*ws/.4;
     tag(v.name, v.x, ty, ws, v.skin==='master'||v.coins>=99?'gold':'', avatar(v.avatar), v.state==='sit' ? v.seat?.gap : 0);
     if (v.state==='award' && v.aw.ph==='present') tag('\u{1F3C6} ဆုချ', v.x, ty-38, ws, 'gold');
+    if (v.giftTag && now < v.giftTag.until) tag(v.giftTag.text, v.x, ty-Math.max(30, 42*ws/.4), ws*1.25, 'gold'); else if (v.giftTag) v.giftTag = null;
     if (v.bubble && now<v.bubble.until) bubbles.push([v.bubble.text, v.x, ty-Math.max(18,30*ws/.4), ws]); else v.bubble=null;
   }
   for (const b of bubbles) bubble(...b);
