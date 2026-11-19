@@ -57,7 +57,9 @@ button.red{background:var(--red);border-color:#ff5c8a}
   <section class="card">
     <h2>1 · TikTok LIVE ချိတ်ဆက်ရန်</h2>
     <label for="uid">Live လွှင့်နေတဲ့ channel username</label>
-    <div class="row"><input id="uid" placeholder="@yourchannel" autocomplete="off"><button class="primary" id="btnConnect">ချိတ်ဆက်မယ်</button><button id="btnDisconnect">ဖြုတ်မယ်</button></div>
+    <input id="uid" placeholder="@yourchannel" autocomplete="off">
+    <div class="row"><button class="primary" id="btnConnect">ချိတ်ဆက်မယ်</button><button id="btnDisconnect">ဖြုတ်မယ်</button></div>
+    <div id="tkErr" class="hint" style="color:#ff9a9a"></div>
     <p class="hint">Live အခန်းရဲ့ အများမြင် event တွေပဲ ဖတ်တာပါ (comment, gift, like)။ TikTok password / cookie မလိုပါ။ LIVE အရင် ဖွင့်ပြီးမှ ချိတ်ဆက်ပါ။</p>
     <button class="gold" id="btnOverlay">Overlay 9:16 ဖွင့်မယ်</button>
     <p class="hint">TikTok Mobile gaming / screen share Live မှာ overlay ပြနေတဲ့ Chrome tab ကို ပြပါ။ အသံအတွက် overlay မှာ "အသံဖွင့်ရန်" ကို တစ်ခါ နှိပ်ပါ။</p>
@@ -157,6 +159,7 @@ function renderPeople(){
 function setTT(st){
   const el=$('tt'); el.className='chip ' + (st.status==='connected'?'ok':st.status==='error'?'bad':'');
   el.textContent = st.status==='connected' ? `TikTok: @${st.uniqueId} ✓` : st.status==='connecting' ? `TikTok: ချိတ်ဆက်နေတယ် @${st.uniqueId}…` : st.status==='error' ? 'TikTok: ချိတ်ဆက် အမှား' : 'TikTok: မချိတ်ရသေး';
+  const err=$('tkErr'); if (err) err.textContent = st.status==='error' ? ('⚠ ' + (st.error || '') + (String(st.error||'').includes('Room ID') ? ' — LIVE ဖွင့်ထားလား၊ username အတိအကျ မှန်လား စစ်ပါ။' : '')) : '';
 }
 function connect(){
   ws = new WebSocket(`ws://${location.host}/ws?role=control`);
