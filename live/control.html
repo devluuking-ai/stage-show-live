@@ -60,6 +60,9 @@ button.red{background:var(--red);border-color:#ff5c8a}
     <input id="uid" placeholder="@yourchannel" autocomplete="off">
     <div class="row"><button class="primary" id="btnConnect">ချိတ်ဆက်မယ်</button><button id="btnDisconnect">ဖြုတ်မယ်</button></div>
     <div id="tkErr" class="hint" style="color:#ff9a9a"></div>
+    <label for="eulerKey">Euler Stream API Key (အခမဲ့ — ချိတ်ဆက်ဖို့ လိုတယ်)</label>
+    <input id="eulerKey" type="password" placeholder="eulerstream.com က API key" autocomplete="off">
+    <div class="row"><button id="btnKey">Key သိမ်းမယ်</button><span id="keyState" class="hint"></span></div>
     <p class="hint">Live အခန်းရဲ့ အများမြင် event တွေပဲ ဖတ်တာပါ (comment, gift, like)။ TikTok password / cookie မလိုပါ။ LIVE အရင် ဖွင့်ပြီးမှ ချိတ်ဆက်ပါ။</p>
     <button class="gold" id="btnOverlay">Overlay 9:16 ဖွင့်မယ်</button>
     <p class="hint">TikTok Mobile gaming / screen share Live မှာ overlay ပြနေတဲ့ Chrome tab ကို ပြပါ။ အသံအတွက် overlay မှာ "အသံဖွင့်ရန်" ကို တစ်ခါ နှိပ်ပါ။</p>
@@ -167,10 +170,11 @@ function connect(){
   ws.onclose = () => { $('srv').textContent='Server: ချိတ်ဆက်ပြတ်'; $('srv').className='chip bad'; setTimeout(connect, 2000); };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.t==='state'){ fillSettings(m.settings); setTT(m.tiktok); people.clear(); for (const v of m.viewers) people.set(v.id,v); renderPeople(); }
+    if (m.t==='state'){ fillSettings(m.settings); setTT(m.tiktok); setKeyState(m.eulerKeySet); people.clear(); for (const v of m.viewers) people.set(v.id,v); renderPeople(); }
     else if (m.t==='logs'){ $('log').textContent=''; m.lines.forEach(logLine); }
     else if (m.t==='log') logLine(m.line);
     else if (m.t==='tiktok') setTT(m);
+    else if (m.t==='euler') setKeyState(m.set);
     else if (m.t==='join'){ people.set(m.v.id,m.v); renderPeople(); }
     else if (m.t==='leave'){ people.delete(m.id); renderPeople(); }
     else if (m.t==='gift'){ const p=people.get(m.id); if(p){ p.coins=m.total; renderPeople(); } }
@@ -182,6 +186,8 @@ connect();
 $('btnConnect').onclick = () => send('connect', { uniqueId: $('uid').value });
 $('uid').onkeydown = e => { if (e.key==='Enter') send('connect', { uniqueId: $('uid').value }); };
 $('btnDisconnect').onclick = () => send('disconnect');
+function setKeyState(set){ $('keyState').textContent = set ? '✓ Key ထည့်ထားပြီး' : 'Key မထည့်ရသေးပါ'; }
+$('btnKey').onclick = () => { send('eulerKey', { key: $('eulerKey').value }); $('eulerKey').value = ''; };
 $('btnOverlay').onclick = () => window.open('/live/overlay.html', 'overlay916', 'width=540,height=960');
 $('btnChat').onclick = () => send('chat', { name: $('simName').value, text: $('simText').value, skin: $('simSkin').value });
 const GIFTS = [['နှင်းဆီ','🌹',1],['အသဲပေး','🧡',1],['ရိုဆာ','🌷',10],['ဒိုးနတ်','🍩',30],['ပန်းစည်း','💐',30],['လက်အသဲ','🫶',100],['အသဲများ','💖',199],['သရဖူ','👑',199],['ကော်ဂီ','🐶',299],['ပိုက်ဆံသေနတ်','💸',500],['ဟင်္သာ','🦢',699],['ဂလက်ဆီ','🌌',1000],['ဝေလငါး','🐳',2150],['ဥက္ကာပျံ','☄️',3000],['ကြောင်လေး','🐱',4888],['ဂျက်လေယာဉ်','✈️',5000],['စပোর্ঐ်ကား','🏎️',7000],['အင်တာစတယ်လာ','🚀',10000],['နက်ဗျူလာ','💫',15000],['ခြင်္သေ့','🦁',29999],['ယူနီဗာစ်','🪐',44999]];

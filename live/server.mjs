@@ -15,6 +15,8 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');            // repo root: serves /assets, /live
 const TTS_DIR = path.join(__dirname, 'tts');
+const EULER_KEY_FILE = path.join(__dirname, 'euler-key.txt');   // Euler Stream API key (free) — needed to sign TikTok connections; never committed
+let eulerKey = ''; try { eulerKey = fs.readFileSync(EULER_KEY_FILE, 'utf8').trim(); } catch {}
 fs.mkdirSync(TTS_DIR, { recursive: true });
 for (const f of fs.readdirSync(TTS_DIR)) { try { fs.unlinkSync(path.join(TTS_DIR, f)); } catch {} }
 const PORT = +process.env.PORT || 3000;
@@ -59,7 +61,7 @@ function skinFromText(t){
 const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man'];
 
 function pub(v){ return { id:v.id, name:v.name, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo }; }
-function snapshot(){ return { t:'state', settings, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
+function snapshot(){ return { t:'state', settings, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState, eulerKeySet: !!eulerKey }; }
 
 function seat(id, name, opts = {}){
   let v = viewers.get(id);
@@ -175,7 +177,7 @@ async function connectTikTok(uniqueId){
   try {
     TikTokLib ||= await import('tiktok-live-connector');
     const { TikTokLiveConnection, WebcastEvent, ControlEvent } = TikTokLib;
-    const conn = new TikTokLiveConnection(uniqueId, { enableExtendedGiftInfo: true, processInitialData: false });
+    const conn = new TikTokLiveConnection(uniqueId, { enableExtendedGiftInfo: true, processInitialData: false, ...(eulerKey ? { signApiKey: eulerKey } : {}) });
     const av = u => u?.profilePicture?.url?.[0] || u?.profilePicture?.urlList?.[0] || u?.avatarThumb?.urlList?.[0] || u?.avatarThumb?.url?.[0] || '';
     const nm = u => u?.nickname || u?.uniqueId || 'အမည်မသိ';
     conn.on(WebcastEvent.CHAT, d => onChat(d.user?.uniqueId || d.user?.userId, nm(d.user), d.comment, av(d.user)));
@@ -198,6 +200,7 @@ async function connectTikTok(uniqueId){
   } catch (e) {
     tiktokState = { status: 'error', uniqueId, error: String(e?.message || e) };
     addLog(`❌ @${uniqueId} နဲ့ ချိတ်ဆက်မရပါ: ${tiktokState.error}`);
+    if (!eulerKey && /euler|sign|business plan/i.test(tiktokState.error)) addLog('💡 Euler Stream API key (အခမဲ့) လိုနေတယ် — eulerstream.com မှာ အကောင့် ဖွင့်၊ API key ယူပြီး အပိုင်း ၁ မှာ ထည့်ပါ');
   }
   broadcast({ t:'tiktok', ...tiktokState });
 }
@@ -221,6 +224,7 @@ function onControl(m){
   switch (m.cmd){
     case 'connect': connectTikTok(m.uniqueId); break;
     case 'disconnect': disconnectTikTok(); addLog('TikTok ချိတ်ဆက်မှု ဖြုတ်လိုက်ပြီ'); break;
+    case 'eulerKey': { eulerKey = String(m.key || '').trim().slice(0, 200); try { if (eulerKey) fs.writeFileSync(EULER_KEY_FILE, eulerKey); else fs.unlinkSync(EULER_KEY_FILE); } catch {} broadcast({ t:'euler', set: !!eulerKey }, 'control'); addLog(eulerKey ? '🔑 Euler API key သိမ်းထားပြီ' : '🔑 Euler API key ဖယ်လိုက်ပြီ'); break; }
     case 'chat': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onChat('sim_' + n, n, String(m.text || 'အရမ်းမိုက်တယ် 👏').slice(0, 120)); applyCtlSkin('sim_' + n, m); break; }
     case 'gift': { const n = String(m.name || 'ပရိသတ်').slice(0, 18); onGift('sim_' + n, n, String(m.gift || 'နှင်းဆီ').slice(0, 30), clamp(m.count, 1, 99), clamp(m.diamonds, 1, 50000)); applyCtlSkin('sim_' + n, m); break; }
     case 'fill': fillDemo(clamp(m.n, 1, 100), ctlSkin(m)); addLog(`လူအတု ထည့်ပြီး: ${viewers.size} ယောက်`); break;

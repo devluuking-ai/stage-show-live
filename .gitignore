@@ -3,5 +3,6 @@ live/tts/
 *.log
 .env
 .env.*
+live/euler-key.txt
 .DS_Store
 Thumbs.db

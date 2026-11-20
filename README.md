@@ -30,6 +30,8 @@ cd live
 npm start
 ```
 
+**အရင် တစ်ခါပဲ လုပ်ရမှာ — Euler Stream API key (အခမဲ့):** TikTok က connection လက်မှတ် (signature) ကို Euler Stream က ထုတ်ပေးတာ ဖြစ်ပြီး အခု key မပါဘဲ လက်မှတ် မထုတ်ပေးတော့ပါ။ [eulerstream.com](https://www.eulerstream.com) မှာ အကောင့် အခမဲ့ ဖွင့် (card မလို) → Dashboard မှာ API key ယူ → control panel အပိုင်း ၁ က **Euler Stream API Key** မှာ ထည့်ပြီး **Key သိမ်းမယ်** နှိပ်ပါ။ Key က ဖုန်းထဲမှာပဲ သိမ်းတယ် (live/euler-key.txt)၊ GitHub ပေါ် မတင်ပါ။
+
 1. Chrome မှာ `http://localhost:3000/live/control.html` ဖွင့်ပါ (control panel)။
 2. Control ကနေ overlay ကို ဖွင့်ပြီး **အသံဖွင့်ရန်** ကို တစ်ခါ နှိပ်ပါ (browser က အသံ auto-play ပိတ်ထားလို့)။
 3. TikTok မှာ **Mobile gaming / screen share LIVE** ဖွင့်ပါ — ပုံမှန် camera LIVE ဆို overlay မပါပါ။
