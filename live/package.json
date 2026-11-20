@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "msedge-tts": "2.1.1",
-    "tiktok-live-connector": "2.5.0",
+    "ttl-live": "file:./ttl-live",
     "ws": "8.18.0"
   }
 }

@@ -30,7 +30,7 @@ cd live
 npm start
 ```
 
-**အရင် တစ်ခါပဲ လုပ်ရမှာ — Euler Stream API key (အခမဲ့):** TikTok က connection လက်မှတ် (signature) ကို Euler Stream က ထုတ်ပေးတာ ဖြစ်ပြီး အခု key မပါဘဲ လက်မှတ် မထုတ်ပေးတော့ပါ။ [eulerstream.com](https://www.eulerstream.com) မှာ အကောင့် အခမဲ့ ဖွင့် (card မလို) → Dashboard မှာ API key ယူ → control panel အပိုင်း ၁ က **Euler Stream API Key** မှာ ထည့်ပြီး **Key သိမ်းမယ်** နှိပ်ပါ။ Key က ဖုန်းထဲမှာပဲ သိမ်းတယ် (live/euler-key.txt)၊ GitHub ပေါ် မတင်ပါ။
+**TikTok ချိတ်ဆက်မှု — API key မလိုတော့ပါ (v26):** အရင်က သုံးတဲ့ Euler Stream လက်မှတ် service က အခမဲ့ key နဲ့ လက်မှတ် မထုတ်ပေးတော့လို့၊ လက်မှတ်ကို **ကိုယ်တိုင် ထုတ်တဲ့ open-source စနစ် (ttl-live)** နဲ့ အစားထိုးထားတယ် — TikTok ရဲ့ ကိုယ်ပိုင် webmssdk ကို ဖုန်းထဲမှာပဲ run ပြီး လက်မှတ် ထုတ်တာမို့ အကောင့်/key/plan ဘာမှ မလိုပါ၊ အမြဲတမ်း အခမဲ့ပါ။ လိုအပ်ချက်: **Node 22+** (Termux မှာ `pkg upgrade nodejs`)။
 
 1. Chrome မှာ `http://localhost:3000/live/control.html` ဖွင့်ပါ (control panel)။
 2. Control ကနေ overlay ကို ဖွင့်ပြီး **အသံဖွင့်ရန်** ကို တစ်ခါ နှိပ်ပါ (browser က အသံ auto-play ပိတ်ထားလို့)။
