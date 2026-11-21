@@ -108,6 +108,12 @@ button.red{background:var(--red);border-color:#ff5c8a}
       <label>နောက်ခံသီချင်း<select id="track"><option value="1">အဖွင့်သီချင်း (Opener)</option><option value="2">အဖွင့်သီချင်း (Opener) အဆက်</option><option value="3">ကိုယ်ပိုင်သီချင်း (ယာယီ)</option></select></label>
     </div>
     <div class="row">
+      <label>စုံတွဲ — အရင် ဆိုသူ<select id="duoFirst"><option value="male">ယောက်ျား အရင်</option><option value="female">မိန်းကလေး အရင်</option></select></label>
+      <label>ပထမ အဆိုတော် စဆိုချိန် (စက္ကန့်)<input type="number" id="duoDelay" min="0" max="60" step="1" value="0"></label>
+      <label>တစ်လှည့်စီ ဆိုချိန် (စက္ကန့်)<input type="number" id="duoTurn" min="5" max="60" step="1" value="15"></label>
+    </div>
+    <p class="hint">စုံတွဲ (duo) အတွက်ပဲ — သီချင်းထဲမှာ ဘယ်သူ အရင် စဆိုလဲ၊ ဘယ်နှစ် စက္ကန့်မှာ စဆိုလဲ၊ တစ်ယောက် ဘယ်လောက် ကြာ ဆိုလဲ ညှိထားရင် avatar တွေ မိုက် ကိုင်တဲ့ အလှည့်နဲ့ ကိုက်မယ်။</p>
+    <div class="row">
       <input type="file" id="musicFile" accept="audio/*">
       <button id="btnUploadMusic">ကိုယ်ပိုင်သီချင်း တင်မယ်</button>
       <span class="hint" id="upMsg"></span>
@@ -147,7 +153,7 @@ const $ = id => document.getElementById(id);
 let ws = null;
 const send = (cmd, extra={}) => ws?.readyState===1 && ws.send(JSON.stringify({ t:'ctl', cmd, ...extra }));
 function logLine(s){ const el=$('log'); el.textContent += s + '\n'; el.scrollTop = el.scrollHeight; }
-const SETTING_IDS = ['voice','pitch','rate','music','mo','autoChant','moBpm','chantEveryMin','title','subtitle','seatMode','joinOnEnter','performer','track'];
+const SETTING_IDS = ['voice','pitch','rate','music','mo','autoChant','moBpm','chantEveryMin','title','subtitle','seatMode','joinOnEnter','performer','track','duoFirst','duoTurn','duoDelay'];
 function fillSettings(s){ for (const k of SETTING_IDS){ const el=$(k); if (!el || s[k]===undefined) continue; if (el.type==='checkbox') el.checked=!!s[k]; else el.value=s[k]; } }
 function readSettings(){ const o={}; for (const k of SETTING_IDS){ const el=$(k); o[k] = el.type==='checkbox' ? el.checked : el.type==='number' ? +el.value : el.value; } return o; }
 const people = new Map();

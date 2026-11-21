@@ -30,6 +30,7 @@ const settings = {
   music: true, mo: false, moBpm: 52,
   performer: 'female',               // female | male singer on stage
   track: 1,                          // background song: 1 | 2 | 3 (3 = uploaded custom song, session-only)
+  duoFirst: 'male', duoTurn: 15, duoDelay: 0,   // duet timing: who sings first, seconds per solo turn, when the first verse starts
   autoChant: true, chantEveryMin: 3,
   seatMode: 'auto',                  // auto | 24 | 36 | 64 | 100
   joinOnEnter: false,                // also seat viewers who only enter the room
@@ -247,6 +248,8 @@ const SETTING_RULES = {
   seatMode: v => ['auto', '24', '36', '64', '100'].includes(String(v)) ? String(v) : 'auto',
   performer: v => ['female', 'male', 'duo'].includes(v) ? v : settings.performer,
   track: v => [1, 2, 3].includes(+v) ? +v : settings.track,
+  duoFirst: v => ['male', 'female'].includes(v) ? v : settings.duoFirst,
+  duoTurn: v => clamp(v, 5, 60), duoDelay: v => clamp(v, 0, 60),
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Math.round(+v || 0)));
 function applySettings(o){ for (const [k, fn] of Object.entries(SETTING_RULES)) if (k in o) settings[k] = fn(o[k]); }

@@ -169,7 +169,7 @@ let chantHide=null;
 function showChant(text){ document.getElementById('chantText').textContent=text; const el=document.getElementById('chant'); el.classList.add('show'); clearTimeout(chantHide); chantHide=setTimeout(()=>el.classList.remove('show'), 14000); }
 
 /* ======================= audio ======================= */
-let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1 };
+let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1, duoFirst:'male', duoTurn:15, duoDelay:0 };
 const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3','/assets/music/custom.mp3']; let trackIdx=0, musicEl=null;
 document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); };
 function startAudio(){
@@ -195,11 +195,19 @@ function playIntro(){   // welcome announcement: nothing else plays under it —
   el.play().catch(done);
   setTimeout(done, 20000);   // safety: never leave the show silent if the intro element misbehaves
 }
+let customFailed = false;
 function nextTrack(){
   if (introActive) return;   // a track change during the announcement applies when the music starts
   if (musicEl){ musicEl.pause(); }
-  musicEl = new Audio(TRACKS[trackIdx++ % TRACKS.length]); const src=AC.createMediaElementSource(musicEl); src.connect(musicGain);
-  musicEl.onended = nextTrack; musicEl.onerror = () => setTimeout(nextTrack, 800); musicEl.play().catch(()=>{});
+  if ((+settings.track || 1) === 3 && !customFailed) trackIdx = 2;   // the uploaded song is chosen: it loops on its own, the built-ins stay out
+  const idx = trackIdx++ % TRACKS.length;
+  musicEl = new Audio(TRACKS[idx]); const src = AC.createMediaElementSource(musicEl);
+  const boost = AC.createGain(); boost.gain.value = idx === 2 ? 1.8 : 1;   // the uploaded song plays louder (the master compressor keeps it clean)
+  src.connect(boost); boost.connect(musicGain);
+  musicEl.onended = nextTrack;
+  musicEl.onerror = () => { if (idx === 2) customFailed = true; setTimeout(nextTrack, 800); };
+  musicEl.onplaying = () => { if (idx === 2) customFailed = false; };
+  musicEl.play().catch(()=>{});
 }
 function duck(on){ if(!musicGain) return; const t=AC.currentTime, target = !settings.music ? 0 : on ? .14 : .5; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(target,t+1.1); }
 let haloPulse=0;
@@ -268,6 +276,7 @@ function applySettings(){
   document.getElementById('title').textContent=settings.title||'စတိတ်ရှိုး Stage Show';
   document.getElementById('subtitle').textContent=settings.subtitle||'ကြိုဆိုပါတယ် · အားပေးကြပါ 🎤';
   duck(false); scheduleMo();
+  if ((+settings.track || 1) === 3) customFailed = false;   // a fresh upload (or re-pick) retries the custom song
   const want = Math.max(0, Math.min(2, (+settings.track || 1) - 1));
   if (AC && want !== ((trackIdx - 1 + TRACKS.length) % TRACKS.length)) { trackIdx = want; nextTrack(); }
 }
@@ -303,15 +312,17 @@ function songPhase(){   // the singer follows the song: standing before it start
   const p = musicEl.currentTime / musicEl.duration;
   return p>=.93 ? 'wave' : p>=.45 ? 'two' : 'one';
 }
-function duetPoses(){   // a duet: verses alternate (the other singer stands with the mic down), the chorus is sung together with both hands, both wave at the end
+function duetPoses(){   // a duet: solo turns alternate on a clock the control panel sets (who sings first, when the first verse starts, seconds per turn) so the mic poses can line up with the song's real verses; the chorus is sung together with both hands, both wave at the end
   if (!musicEl || musicEl.paused || !musicEl.duration || !isFinite(musicEl.duration)) return ['stand','stand'];
-  const p = musicEl.currentTime / musicEl.duration;
-  if (p>=.93) return ['wave','wave'];
-  if (p>=.80) return p<.865 ? ['one','stand'] : ['stand','one'];
-  if (p>=.55) return ['two','two'];
-  if (p>=.30) return ['stand','one'];
-  if (p>=.03) return ['one','stand'];
-  return ['stand','stand'];
+  const t = musicEl.currentTime, p = t / musicEl.duration;
+  if (p >= .93) return ['wave','wave'];
+  if (p >= .55 && p < .80) return ['two','two'];
+  const st = t - Math.max(0, +settings.duoDelay || 0);
+  if (st < 0) return ['stand','stand'];
+  const turn = Math.max(5, +settings.duoTurn || 15);
+  const span = p >= .80 ? Math.max(2, turn / 3) : turn;   // quick trade-off near the end
+  const maleTurn = (Math.floor(st / span) % 2 === 0) === (settings.duoFirst !== 'female');
+  return maleTurn ? ['one','stand'] : ['stand','one'];
 }
 function drawSinger(x, y, s, img, pose, off, t){   // shadow + gentle bob/sway; off offsets a duo partner so the two never move in sync
   groundShadow(x, y+4, 105*s, .34);
