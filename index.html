@@ -192,11 +192,10 @@ function audioStart(){
   if (AC) return;
   AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value=.8; master.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value=.55; musicGain.connect(master);
-  playTrack(Math.floor(Math.random()*TRACKS.length));
-  chime(); bellTimer=setInterval(chime, 60000); mokTimer=setInterval(beat, 1000);
   const intro = new Audio('assets/intro.mp3'); const isrc = AC.createMediaElementSource(intro), ig = AC.createGain(); ig.gain.value = 1.1; isrc.connect(ig); ig.connect(master);
-  intro.onplay = () => setDuck(true); intro.onended = intro.onerror = () => setDuck(false);
-  intro.play().catch(()=>{});
+  let begun = false; const begin = () => { if (begun) return; begun = true; playTrack(Math.floor(Math.random()*TRACKS.length)); chime(); bellTimer=setInterval(chime, 60000); mokTimer=setInterval(beat, 1000); };
+  intro.onended = begin; intro.onerror = begin;
+  intro.play().catch(begin);   // announcement first, alone; music + chime start when it ends
 }
 function playTrack(i){
   trackIdx = (i+TRACKS.length)%TRACKS.length; const tr = TRACKS[trackIdx];

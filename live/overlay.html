@@ -179,16 +179,24 @@ function startAudio(){
   master.connect(comp); comp.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value=settings.music?.5:0; musicGain.connect(master);
   sfx = AC.createGain(); sfx.gain.value=1; sfx.connect(master);
-  nextTrack(); scheduleMo(); bell();
-  playIntro();
+  scheduleMo();
+  playIntro();   // the welcome announcement plays ALONE first; the music starts when it ends
 }
-function playIntro(){   // welcome announcement: plays when the show starts, music ducks under it
-  if (!AC) return;
+let introActive = false, musicStarted = false, resumeAfterIntro = false;
+function playIntro(){   // welcome announcement: nothing else plays under it — at show start the music waits for it to finish; on a mid-show replay the music pauses and resumes after
+  if (!AC || introActive) return;
+  if (musicEl && !musicEl.paused){ musicEl.pause(); resumeAfterIntro = true; }
+  introActive = true;
   const el = new Audio('/assets/intro.mp3'); const src = AC.createMediaElementSource(el); const g = AC.createGain(); g.gain.value = 1.15; src.connect(g); g.connect(master);
-  el.onplay = () => duck(true); el.onended = el.onerror = () => duck(false);
-  el.play().catch(()=>{});
+  const done = () => { if (!introActive) return; introActive = false;
+    if (!musicStarted){ musicStarted = true; bell(); nextTrack(); }
+    else if (resumeAfterIntro && musicEl){ resumeAfterIntro = false; musicEl.play().catch(()=>{}); } };
+  el.onended = done; el.onerror = done;
+  el.play().catch(done);
+  setTimeout(done, 20000);   // safety: never leave the show silent if the intro element misbehaves
 }
 function nextTrack(){
+  if (introActive) return;   // a track change during the announcement applies when the music starts
   if (musicEl){ musicEl.pause(); }
   musicEl = new Audio(TRACKS[trackIdx++ % TRACKS.length]); const src=AC.createMediaElementSource(musicEl); src.connect(musicGain);
   musicEl.onended = nextTrack; musicEl.onerror = () => setTimeout(nextTrack, 800); musicEl.play().catch(()=>{});
@@ -201,7 +209,7 @@ function bell(big){   // stage chime + spotlight pulse (name kept: server sends 
   haloPulse=1;
 }
 function mo(){   // stage beat thump (name kept: server/setting key is 'mo')
-  if(!AC) return; const t=AC.currentTime;
+  if(!AC || introActive) return; const t=AC.currentTime;
   const o=AC.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(52,t+.11);
   const g=AC.createGain(); g.gain.setValueAtTime(.3,t); g.gain.exponentialRampToValueAtTime(.001,t+.13);
   o.connect(g); g.connect(sfx); o.start(t); o.stop(t+.14);
