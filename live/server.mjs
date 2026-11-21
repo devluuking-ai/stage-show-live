@@ -9,6 +9,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import { WebSocketServer } from 'ws';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
@@ -279,17 +280,21 @@ function setBots(on, n, pace, skin){
 
 /* -------------------------------------------------------------- server */
 // Security notes (this file is meant to be shared publicly):
-//  • listens on 127.0.0.1 only; nothing is reachable from the LAN or internet unless HOST is changed on purpose
-//  • Host header must be localhost/127.0.0.1 (blocks DNS-rebinding pages from talking to the server)
+//  • listens on all interfaces so the control panel can be opened from another device on the SAME
+//    Wi-Fi (e.g. a second phone) while the streaming phone only shows the overlay; not reachable from
+//    the internet (no port forwarding), but anyone on the same Wi-Fi can open the control panel —
+//    use it on a trusted home network only
+//  • Host header must be localhost/127.0.0.1 or a private LAN address (blocks DNS-rebinding pages)
 //  • WebSocket only accepts pages served by this server (Origin check), so other sites open in the
 //    same browser cannot send control commands
 //  • static files: only /assets and /live, no dot-files, no node_modules, no server source, no path escapes
 //  • no TikTok password, cookie or session is ever used or stored; only public room events are read
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
   '.png':'image/png', '.jpg':'image/jpeg', '.webp':'image/webp', '.mp3':'audio/mpeg', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
-const okHost = h => ALLOWED_HOSTS.has(String(h || '').toLowerCase());
+const PRIVATE_HOST = /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$/;
+const okHost = h => { h = String(h || '').toLowerCase(); return ALLOWED_HOSTS.has(h) || (h.endsWith(':' + PORT) && PRIVATE_HOST.test(h.slice(0, -String(PORT).length - 1))); };
 const SEP = path.sep;
 function resolveStatic(urlPath){
   let p = urlPath === '/' ? '/live/control.html' : urlPath;
@@ -341,4 +346,7 @@ wss.on('connection', (ws, req) => {
   });
 });
 if (parseInt(process.versions.node) < 22) addLog(`⚠️ Node ${process.versions.node} — ttl-live အတွက် Node 22+ လိုပါတယ် (Termux: pkg upgrade nodejs)`);
-server.listen(PORT, HOST, () => addLog(`Server လည်နေပြီ http://localhost:${PORT}  ·  Control: http://localhost:${PORT}/live/control.html  ·  Overlay: http://localhost:${PORT}/live/overlay.html`));
+server.listen(PORT, HOST, () => {
+  addLog(`Server လည်နေပြီ http://localhost:${PORT}  ·  Control: http://localhost:${PORT}/live/control.html  ·  Overlay: http://localhost:${PORT}/live/overlay.html`);
+  for (const addrs of Object.values(os.networkInterfaces())) for (const a of addrs || []) if (a.family === 'IPv4' && !a.internal) addLog(`📱 နောက် device (Wi-Fi တူရမယ်) ကနေ Control: http://${a.address}:${PORT}/live/control.html`);
+});

@@ -32,6 +32,8 @@ npm start
 
 **TikTok ချိတ်ဆက်မှု — API key မလိုတော့ပါ (v26):** အရင်က သုံးတဲ့ Euler Stream လက်မှတ် service က အခမဲ့ key နဲ့ လက်မှတ် မထုတ်ပေးတော့လို့၊ လက်မှတ်ကို **ကိုယ်တိုင် ထုတ်တဲ့ open-source စနစ် (ttl-live)** နဲ့ အစားထိုးထားတယ် — TikTok ရဲ့ ကိုယ်ပိုင် webmssdk ကို ဖုန်းထဲမှာပဲ run ပြီး လက်မှတ် ထုတ်တာမို့ အကောင့်/key/plan ဘာမှ မလိုပါ၊ အမြဲတမ်း အခမဲ့ပါ။ လိုအပ်ချက်: **Node 22+** (Termux မှာ `pkg upgrade nodejs`)။
 
+**Control ကို နောက် device ကနေ သုံးနည်း (v27):** LIVE လွှင့်တဲ့ ဖုန်းမှာ overlay ပဲ အပြည့် ဖွင့်ထားပြီး၊ control ကို နောက် ဖုန်း/ကွန်ပျူတာ ကနေ သီးခြား သုံးနိုင်တယ်။ Device နှစ်ခုလုံး **Wi-Fi အတူတူ** ချိတ်ထားရမယ်။ Server စတင်လိုက်ရင် Termux log မှာ `📱 နောက် device (Wi-Fi တူရမယ်) ကနေ Control: http://192.168.x.x:3000/live/control.html` ဆိုပြီး လိပ်စာ ပြပေးတယ် — အဲဒီ လိပ်စာကို နောက် device ရဲ့ Chrome မှာ ဖွင့်ရုံပဲ။ သတိ: Wi-Fi တူတူသုံးနေတဲ့ သူတိုင်း control ကို ဖွင့်နိုင်တာမို့ ကိုယ့် အိမ် Wi-Fi လို စိတ်ချရတဲ့ network မှာပဲ သုံးပါ (အင်တာနက် အပြင်ကနေ ဝင်လို့ မရပါ)။
+
 1. Chrome မှာ `http://localhost:3000/live/control.html` ဖွင့်ပါ (control panel)။
 2. Control ကနေ overlay ကို ဖွင့်ပြီး **အသံဖွင့်ရန်** ကို တစ်ခါ နှိပ်ပါ (browser က အသံ auto-play ပိတ်ထားလို့)။
 3. TikTok မှာ **Mobile gaming / screen share LIVE** ဖွင့်ပါ — ပုံမှန် camera LIVE ဆို overlay မပါပါ။
