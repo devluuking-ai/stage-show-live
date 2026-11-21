@@ -108,11 +108,12 @@ button.red{background:var(--red);border-color:#ff5c8a}
       <label>နောက်ခံသီချင်း<select id="track"><option value="1">အဖွင့်သီချင်း (Opener)</option><option value="2">အဖွင့်သီချင်း (Opener) အဆက်</option><option value="3">ကိုယ်ပိုင်သီချင်း (ယာယီ)</option></select></label>
     </div>
     <div class="row">
+      <label>စုံတွဲ မိုက် အလှည့်<select id="duoSync"><option value="auto">အလိုအလျောက် (အသံ လိုက်)</option><option value="manual">ကိုယ်တိုင် ညှိ</option></select></label>
       <label>စုံတွဲ — အရင် ဆိုသူ<select id="duoFirst"><option value="male">ယောက်ျား အရင်</option><option value="female">မိန်းကလေး အရင်</option></select></label>
       <label>ပထမ အဆိုတော် စဆိုချိန် (စက္ကန့်)<input type="number" id="duoDelay" min="0" max="60" step="1" value="0"></label>
       <label>တစ်လှည့်စီ ဆိုချိန် (စက္ကန့်)<input type="number" id="duoTurn" min="5" max="60" step="1" value="15"></label>
     </div>
-    <p class="hint">စုံတွဲ (duo) အတွက်ပဲ — သီချင်းထဲမှာ ဘယ်သူ အရင် စဆိုလဲ၊ ဘယ်နှစ် စက္ကန့်မှာ စဆိုလဲ၊ တစ်ယောက် ဘယ်လောက် ကြာ ဆိုလဲ ညှိထားရင် avatar တွေ မိုက် ကိုင်တဲ့ အလှည့်နဲ့ ကိုက်မယ်။</p>
+    <p class="hint">စုံတွဲ (duo) အတွက်ပဲ — "အလိုအလျောက်" ဆိုရင် upload တင်တဲ့ သီချင်းရဲ့ အသံ pitch ကို စစ်ပြီး ယောက်ျား/မိန်းကလေး ဆိုတဲ့ အပိုင်းတွေ auto ခွဲပေးမယ် (ခန့်မှန်းမို့ အတိအကျ မဟုတ်ပါ)။ မကိုက်ရင် "ကိုယ်တိုင် ညှိ" နဲ့ အရင် ဆိုသူ / စဆိုချိန် / ဆိုချိန် တွေ လက်နဲ့ ညှိပါ။</p>
     <div class="row">
       <input type="file" id="musicFile" accept="audio/*">
       <button id="btnUploadMusic">ကိုယ်ပိုင်သီချင်း တင်မယ်</button>
@@ -153,7 +154,7 @@ const $ = id => document.getElementById(id);
 let ws = null;
 const send = (cmd, extra={}) => ws?.readyState===1 && ws.send(JSON.stringify({ t:'ctl', cmd, ...extra }));
 function logLine(s){ const el=$('log'); el.textContent += s + '\n'; el.scrollTop = el.scrollHeight; }
-const SETTING_IDS = ['voice','pitch','rate','music','mo','autoChant','moBpm','chantEveryMin','title','subtitle','seatMode','joinOnEnter','performer','track','duoFirst','duoTurn','duoDelay'];
+const SETTING_IDS = ['voice','pitch','rate','music','mo','autoChant','moBpm','chantEveryMin','title','subtitle','seatMode','joinOnEnter','performer','track','duoSync','duoFirst','duoTurn','duoDelay'];
 function fillSettings(s){ for (const k of SETTING_IDS){ const el=$(k); if (!el || s[k]===undefined) continue; if (el.type==='checkbox') el.checked=!!s[k]; else el.value=s[k]; } }
 function readSettings(){ const o={}; for (const k of SETTING_IDS){ const el=$(k); o[k] = el.type==='checkbox' ? el.checked : el.type==='number' ? +el.value : el.value; } return o; }
 const people = new Map();
@@ -206,9 +207,56 @@ $('btnIntro').onclick = () => send('intro');
 $('btnMo').onclick = () => send('mo');
 for (const k of SETTING_IDS) $(k).addEventListener('change', () => send('settings', { settings: readSettings() }));
 $('performer').addEventListener('change', () => { $('voice').value = $('performer').value === 'male' ? 'my-MM-ThihaNeural' : 'my-MM-NilarNeural'; send('settings', { settings: readSettings() }); });
-$('btnUploadMusic').onclick = async () => { const f = $('musicFile').files[0]; if (!f) { $('upMsg').textContent = 'အရင် ဖိုင် ရွေးပါ'; return; } $('upMsg').textContent = 'တင်နေတယ်…';
+/* ---- duet auto-sync: find who sings when in the uploaded song, by voice pitch ----
+   Male voices sit low (~85-180Hz), female voices higher (~165-300Hz). The analysis runs
+   once, here in the control browser; the overlay then just follows the timeline. */
+function autoF0(d, off, n, sr){
+  const minLag = Math.floor(sr/400), maxLag = Math.ceil(sr/70);
+  let r0 = 0; for (let i = 0; i < n; i += 2) r0 += d[off+i]*d[off+i];   // same step as the lag sums below, so the ratio is a true correlation
+  if (r0 <= 0) return 0;
+  const ac = new Float32Array(maxLag + 1); let best = 0, bestLag = 0;
+  for (let lag = minLag; lag <= maxLag; lag++){
+    let r = 0; for (let i = 0; i + lag < n; i += 2) r += d[off+i]*d[off+i+lag];
+    const v = r / r0; ac[lag] = v;
+    if (v > best){ best = v; bestLag = lag; }
+  }
+  if (best < 0.5) return 0;
+  for (let lag = minLag; lag < bestLag; lag++) if (ac[lag] > best * 0.92) { bestLag = lag; break; }   // octave guard: prefer the true (shorter) period
+  return sr / bestLag;
+}
+function analyzePCM(mono, sr){
+  const win = Math.round(sr * 0.2), hop = Math.round(sr * 0.2);
+  const nf = Math.max(0, Math.floor((mono.length - win) / hop) + 1);
+  const rms = new Float32Array(nf), cls = new Array(nf).fill('n');
+  for (let f = 0; f < nf; f++){ let e = 0; const s = f*hop; for (let i = 0; i < win; i += 4){ const v = mono[s+i]; e += v*v; } rms[f] = Math.sqrt(e/(win/4)); }
+  const sorted = [...rms].sort((a,b)=>a-b); const p90 = sorted[Math.floor(nf*0.9)] || 0;
+  const thr = Math.max(0.012, p90 * 0.22);
+  for (let f = 0; f < nf; f++){ if (rms[f] < thr) continue; const f0 = autoF0(mono, f*hop, win, sr); if (f0) cls[f] = f0 < 165 ? 'm' : 'f'; }
+  const sm = cls.slice();
+  for (let f = 0; f < nf; f++){ let m = 0, w = 0; for (let k = -2; k <= 2; k++){ const c = cls[f+k]; if (c === 'm') m++; else if (c === 'f') w++; } if (m + w >= 2) sm[f] = m >= w ? 'm' : 'f'; }
+  for (let f = 0; f < nf; f++){ if (sm[f] !== 'n') continue; let g = f; while (g < nf && sm[g] === 'n') g++; if (g - f <= 5 && f > 0 && g < nf && sm[f-1] === sm[g]) for (let k = f; k < g; k++) sm[k] = sm[f-1]; f = g; }
+  const segs = []; let start = -1, cur = 'n';
+  const push = (a, b, w) => { if (b - a >= 5 || !segs.length) segs.push({ a: +(a*0.2).toFixed(1), b: +(b*0.2).toFixed(1), w }); else segs[segs.length-1].b = +(b*0.2).toFixed(1); };
+  for (let f = 0; f <= nf; f++){ const c = f < nf ? sm[f] : 'n'; if (c !== cur){ if (cur !== 'n') push(start, f, cur); cur = c; start = f; } }
+  return segs;
+}
+async function analyzeSongFile(file){
+  const ab = await file.arrayBuffer();
+  const tmp = new (window.AudioContext || window.webkitAudioContext)();
+  const buf = await tmp.decodeAudioData(ab); tmp.close();
+  const sr = 16000, off = new OfflineAudioContext(1, Math.ceil(buf.duration * sr), sr);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+  const mono = (await off.startRendering()).getChannelData(0);
+  return analyzePCM(mono, sr);
+}
+$('btnUploadMusic').onclick = async () => { const f = $('musicFile').files[0]; if (!f) { $('upMsg').textContent = 'အရင် ဖိုင် ရွေးပါ'; return; }
+  $('upMsg').textContent = 'သီချင်း အသံ စစ်နေတယ်… (auto အလှည့် တွက်နေတယ်)';
+  let segs = null; try { segs = await analyzeSongFile(f); } catch (e) { segs = null; }
+  $('upMsg').textContent = 'တင်နေတယ်…';
   try { const r = await fetch('/live/upload-music', { method: 'POST', body: f }); const j = await r.json();
-    if (j.ok) { $('upMsg').textContent = 'တင်ပြီးပြီ ✓'; $('track').value = '3'; send('settings', { settings: readSettings() }); } else $('upMsg').textContent = 'မအောင်မြင်ပါ'; }
+    if (j.ok) { $('track').value = '3'; send('settings', { settings: readSettings() }); send('timeline', { segments: segs });
+      $('upMsg').textContent = segs ? 'တင်ပြီးပြီ ✓ အဆိုတော် အလှည့် auto တွက်ထားတယ်' : 'တင်ပြီးပြီ ✓ (auto မရ — ကိုယ်တိုင် ညှိ သုံးပါ)'; }
+    else $('upMsg').textContent = 'မအောင်မြင်ပါ'; }
   catch (e) { $('upMsg').textContent = 'အမှား: ' + e.message; } };
 </script>
 </body>

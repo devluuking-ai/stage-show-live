@@ -169,7 +169,7 @@ let chantHide=null;
 function showChant(text){ document.getElementById('chantText').textContent=text; const el=document.getElementById('chant'); el.classList.add('show'); clearTimeout(chantHide); chantHide=setTimeout(()=>el.classList.remove('show'), 14000); }
 
 /* ======================= audio ======================= */
-let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1, duoFirst:'male', duoTurn:15, duoDelay:0 };
+let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1, duoSync:'auto', duoFirst:'male', duoTurn:15, duoDelay:0 };
 const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3','/assets/music/custom.mp3']; let trackIdx=0, musicEl=null;
 document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); };
 function startAudio(){
@@ -195,12 +195,12 @@ function playIntro(){   // welcome announcement: nothing else plays under it —
   el.play().catch(done);
   setTimeout(done, 20000);   // safety: never leave the show silent if the intro element misbehaves
 }
-let customFailed = false;
+let customFailed = false, curIdx = 0, songTimeline = null;
 function nextTrack(){
   if (introActive) return;   // a track change during the announcement applies when the music starts
   if (musicEl){ musicEl.pause(); }
   if ((+settings.track || 1) === 3 && !customFailed) trackIdx = 2;   // the uploaded song is chosen: it loops on its own, the built-ins stay out
-  const idx = trackIdx++ % TRACKS.length;
+  const idx = trackIdx++ % TRACKS.length; curIdx = idx;
   musicEl = new Audio(TRACKS[idx]); const src = AC.createMediaElementSource(musicEl);
   const boost = AC.createGain(); boost.gain.value = idx === 2 ? 1.8 : 1;   // the uploaded song plays louder (the master compressor keeps it clean)
   src.connect(boost); boost.connect(musicGain);
@@ -255,7 +255,7 @@ function connect(){
     const m=JSON.parse(e.data);
     switch(m.t){
       case 'state':
-        Object.assign(settings,m.settings); applySettings(); startedAt=m.startedAt;
+        Object.assign(settings,m.settings); applySettings(); startedAt=m.startedAt; songTimeline = m.timeline || null;
         visitors.clear(); order=[]; layout(m.cap); for (const p of m.viewers) addVisitor(p,true); updateCount(); renderMerit(); break;
       case 'settings': Object.assign(settings,m.settings); applySettings(); if (m.cap!==cap){ layout(m.cap); updateCount(); } break;
       case 'join': if (m.cap!==cap) layout(m.cap); addVisitor(m.v, m.v.demo && visitors.size>8); updateCount(); break;
@@ -268,6 +268,7 @@ function connect(){
       case 'chant': showChant(m.text); bell(); break;
       case 'bell': bell(true); break;
       case 'intro': playIntro(); break;
+      case 'timeline': songTimeline = m.segments; break;
       case 'mo1': mo(); break;
     }
   };
@@ -315,6 +316,13 @@ function songPhase(){   // the singer follows the song: standing before it start
 function duetPoses(){   // a duet: solo turns alternate on a clock the control panel sets (who sings first, when the first verse starts, seconds per turn) so the mic poses can line up with the song's real verses; the chorus is sung together with both hands, both wave at the end
   if (!musicEl || musicEl.paused || !musicEl.duration || !isFinite(musicEl.duration)) return ['stand','stand'];
   const t = musicEl.currentTime, p = t / musicEl.duration;
+  if (settings.duoSync !== 'manual' && curIdx === 2 && songTimeline && songTimeline.length){   // auto: follow the analysed voice timeline of the uploaded song
+    let who = null;
+    for (const s of songTimeline){ if (t < s.a) break; if (t < s.b){ who = s.w; break; } }
+    if (!who) return p >= .93 ? ['wave','wave'] : ['stand','stand'];
+    if (who === 'b') return ['two','two'];
+    return who === 'm' ? ['one','stand'] : ['stand','one'];
+  }
   if (p >= .93) return ['wave','wave'];
   if (p >= .55 && p < .80) return ['two','two'];
   const st = t - Math.max(0, +settings.duoDelay || 0);

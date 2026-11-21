@@ -30,7 +30,7 @@ const settings = {
   music: true, mo: false, moBpm: 52,
   performer: 'female',               // female | male singer on stage
   track: 1,                          // background song: 1 | 2 | 3 (3 = uploaded custom song, session-only)
-  duoFirst: 'male', duoTurn: 15, duoDelay: 0,   // duet timing: who sings first, seconds per solo turn, when the first verse starts
+  duoSync: 'auto', duoFirst: 'male', duoTurn: 15, duoDelay: 0,   // duet mic timing: auto = follow the analysed voice timeline of the uploaded song; manual = who sings first / when the first verse starts / seconds per solo turn
   autoChant: true, chantEveryMin: 3,
   seatMode: 'auto',                  // auto | 24 | 36 | 64 | 100
   joinOnEnter: false,                // also seat viewers who only enter the room
@@ -61,7 +61,7 @@ function skinFromText(t){
 const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man'];
 
 function pub(v){ return { id:v.id, name:v.name, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo }; }
-function snapshot(){ return { t:'state', settings, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
+function snapshot(){ return { t:'state', settings, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState, timeline: customTimeline }; }
 
 function seat(id, name, opts = {}){
   let v = viewers.get(id);
@@ -229,6 +229,7 @@ function onControl(m){
     case 'clear': clearSeats(); break;
     case 'bell': broadcast({ t:'bell' }); break;
     case 'intro': broadcast({ t:'intro' }); break;
+    case 'timeline': { customTimeline = Array.isArray(m.segments) ? m.segments.slice(0, 2000).map(s => ({ a: Math.max(0, +s.a || 0), b: Math.max(0, +s.b || 0), w: ['m','f','b'].includes(s.w) ? s.w : 'm' })).filter(s => s.b > s.a) : null; broadcast({ t:'timeline', segments: customTimeline }); if (customTimeline) addLog('အဆိုတော် အလှည့် (auto) တွက်ပြီးပြီ — ' + customTimeline.length + ' ပိုင်း'); break; }
     case 'mo': broadcast({ t:'mo1' }); break;
     case 'chant': chant(); break;
     case 'say': if (m.text) say(String(m.text).slice(0, 400), { tag:'say' }); break;
@@ -248,6 +249,7 @@ const SETTING_RULES = {
   seatMode: v => ['auto', '24', '36', '64', '100'].includes(String(v)) ? String(v) : 'auto',
   performer: v => ['female', 'male', 'duo'].includes(v) ? v : settings.performer,
   track: v => [1, 2, 3].includes(+v) ? +v : settings.track,
+  duoSync: v => ['auto', 'manual'].includes(v) ? v : settings.duoSync,
   duoFirst: v => ['male', 'female'].includes(v) ? v : settings.duoFirst,
   duoTurn: v => clamp(v, 5, 60), duoDelay: v => clamp(v, 0, 60),
 };
@@ -311,6 +313,7 @@ function resolveStatic(urlPath){
 /* Custom background song (Track 3): session-only — kept in memory, never written to disk.
    When the server (Termux) stops, it is gone; a restart starts with Track 3 empty again. */
 let customSong = null;
+let customTimeline = null;   // duet auto-sync: [{a,b,w}] sung segments of the uploaded song (w: m|f|b), session-only like the song itself
 try { fs.unlinkSync(path.join(ROOT, 'assets', 'music', 'custom.mp3')); } catch {}   // drop any file saved by older versions
 const server = http.createServer((req, res) => {
   if (!okHost(req.headers.host)) { res.writeHead(421).end('wrong host'); return; }
@@ -319,7 +322,7 @@ const server = http.createServer((req, res) => {
     const chunks = []; let size = 0, aborted = false;
     req.on('data', c => { size += c.length; if (size > 25 * 1024 * 1024) { aborted = true; req.destroy(); } else chunks.push(c); });
     req.on('end', () => { if (aborted) return;
-      customSong = Buffer.concat(chunks);
+      customSong = Buffer.concat(chunks); customTimeline = null; broadcast({ t:'timeline', segments: null });
       settings.track = 3; broadcast({ t:'settings', settings, cap: capacity() });
       addLog('ကိုယ်ပိုင်သီချင်း တင်ပြီးပြီ (ယာယီ — Termux ပိတ်ရင် ပျောက်မယ်) — သီချင်း ၃ ရွေးထားတယ်');
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}'); });
