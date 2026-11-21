@@ -29,7 +29,7 @@ const settings = {
   rate: 0,                           // %
   music: true, mo: false, moBpm: 52,
   performer: 'female',               // female | male singer on stage
-  track: 1,                          // background song: 1 | 2 | 3 (3 = uploaded custom.mp3)
+  track: 1,                          // background song: 1 | 2 | 3 (3 = uploaded custom song, session-only)
   autoChant: true, chantEveryMin: 3,
   seatMode: 'auto',                  // auto | 24 | 36 | 64 | 100
   joinOnEnter: false,                // also seat viewers who only enter the room
@@ -305,6 +305,10 @@ function resolveStatic(urlPath){
   if (!file.startsWith(ROOT + SEP)) return null;
   return file;
 }
+/* Custom background song (Track 3): session-only — kept in memory, never written to disk.
+   When the server (Termux) stops, it is gone; a restart starts with Track 3 empty again. */
+let customSong = null;
+try { fs.unlinkSync(path.join(ROOT, 'assets', 'music', 'custom.mp3')); } catch {}   // drop any file saved by older versions
 const server = http.createServer((req, res) => {
   if (!okHost(req.headers.host)) { res.writeHead(421).end('wrong host'); return; }
   let p; try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
@@ -312,13 +316,17 @@ const server = http.createServer((req, res) => {
     const chunks = []; let size = 0, aborted = false;
     req.on('data', c => { size += c.length; if (size > 25 * 1024 * 1024) { aborted = true; req.destroy(); } else chunks.push(c); });
     req.on('end', () => { if (aborted) return;
-      try { fs.writeFileSync(path.join(ROOT, 'assets', 'music', 'custom.mp3'), Buffer.concat(chunks));
-        settings.track = 3; broadcast({ t:'settings', settings, cap: capacity() });
-        addLog('ကိုယ်ပိုင်သီချင်း တင်ပြီးပြီ — သီချင်း ၃ ရွေးထားတယ်');
-        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}');
-      } catch (e) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end('{"ok":false}'); } });
+      customSong = Buffer.concat(chunks);
+      settings.track = 3; broadcast({ t:'settings', settings, cap: capacity() });
+      addLog('ကိုယ်ပိုင်သီချင်း တင်ပြီးပြီ (ယာယီ — Termux ပိတ်ရင် ပျောက်မယ်) — သီချင်း ၃ ရွေးထားတယ်');
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}'); });
     return; }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
+  if (p === '/assets/music/custom.mp3') {          // session-only custom song, served from memory
+    if (!customSong) { res.writeHead(404).end('not found'); return; }
+    res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': customSong.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+    if (req.method === 'HEAD') { res.end(); return; }
+    res.end(customSong); return; }
   const file = resolveStatic(p);
   if (!file) { res.writeHead(404).end('not found'); return; }
   fs.stat(file, (err, st) => {
