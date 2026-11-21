@@ -323,7 +323,7 @@ const server = http.createServer((req, res) => {
     req.on('data', c => { size += c.length; if (size > 25 * 1024 * 1024) { aborted = true; req.destroy(); } else chunks.push(c); });
     req.on('end', () => { if (aborted) return;
       customSong = Buffer.concat(chunks); customTimeline = null; broadcast({ t:'timeline', segments: null });
-      settings.track = 3; broadcast({ t:'settings', settings, cap: capacity() });
+      settings.track = 3; broadcast({ t:'settings', settings, cap: capacity() }); broadcast({ t:'newsong' });
       addLog('ကိုယ်ပိုင်သီချင်း တင်ပြီးပြီ (ယာယီ — Termux ပိတ်ရင် ပျောက်မယ်) — သီချင်း ၃ ရွေးထားတယ်');
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}'); });
     return; }

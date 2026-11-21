@@ -189,25 +189,49 @@ function playIntro(){   // welcome announcement: nothing else plays under it —
   introActive = true;
   const el = new Audio('/assets/intro.mp3'); const src = AC.createMediaElementSource(el); const g = AC.createGain(); g.gain.value = 1.15; src.connect(g); g.connect(master);
   const done = () => { if (!introActive) return; introActive = false;
-    if (!musicStarted){ musicStarted = true; bell(); nextTrack(); }
+    if (!musicStarted){ musicStarted = true; bell(); startMusic(); }
     else if (resumeAfterIntro && musicEl){ resumeAfterIntro = false; musicEl.play().catch(()=>{}); } };
   el.onended = done; el.onerror = done;
   el.play().catch(done);
   setTimeout(done, 20000);   // safety: never leave the show silent if the intro element misbehaves
 }
 let customFailed = false, curIdx = 0, songTimeline = null;
-function nextTrack(){
-  if (introActive) return;   // a track change during the announcement applies when the music starts
-  if (musicEl){ musicEl.pause(); }
-  if ((+settings.track || 1) === 3 && !customFailed) trackIdx = 2;   // the uploaded song is chosen: it loops on its own, the built-ins stay out
-  const idx = trackIdx++ % TRACKS.length; curIdx = idx;
+/* Show flow: the singers perform ONLY the uploaded song. A new upload (or picking track 3)
+   starts a 3s lead-in, then the singers appear together with the song. When the song ends
+   they leave, 5s of quiet follow, then the built-in background music resumes on its own. */
+let perfMode = 'bg', perfTimer = null, bgIdx = 0;
+function playIdx(idx){
+  if (musicEl){ musicEl.onended = musicEl.onerror = musicEl.onplaying = null; musicEl.pause(); }
+  curIdx = idx;
   musicEl = new Audio(TRACKS[idx]); const src = AC.createMediaElementSource(musicEl);
   const boost = AC.createGain(); boost.gain.value = idx === 2 ? 1.8 : 1;   // the uploaded song plays louder (the master compressor keeps it clean)
   src.connect(boost); boost.connect(musicGain);
-  musicEl.onended = nextTrack;
-  musicEl.onerror = () => { if (idx === 2) customFailed = true; setTimeout(nextTrack, 800); };
+  musicEl.onended = onTrackEnded;
+  musicEl.onerror = () => { if (idx === 2) customFailed = true; setTimeout(onTrackEnded, 800); };
   musicEl.onplaying = () => { if (idx === 2) customFailed = false; };
   musicEl.play().catch(()=>{});
+}
+function onTrackEnded(){
+  if (!AC) return;
+  if (perfMode === 'perf'){ endPerformance(); return; }
+  if (perfMode !== 'bg') return;                 // lead-in / gap: the timers decide what happens next
+  bgIdx = (bgIdx + 1) % 2; playIdx(bgIdx);       // background: rotate the two built-in tracks
+}
+function endPerformance(){
+  perfMode = 'gap';
+  clearTimeout(perfTimer);
+  perfTimer = setTimeout(() => { if (perfMode !== 'gap') return; perfMode = 'bg'; bgIdx = 0; playIdx(0); }, 5000);
+}
+function beginLeadIn(){
+  if (!AC || introActive || perfMode === 'lead') return;
+  clearTimeout(perfTimer);
+  if (musicEl){ musicEl.onended = musicEl.onerror = musicEl.onplaying = null; musicEl.pause(); }
+  perfMode = 'lead';
+  perfTimer = setTimeout(() => { if (perfMode !== 'lead') return; perfMode = 'perf'; playIdx(2); }, 3000);
+}
+function startMusic(){   // when the intro announcement finishes: the performance if the uploaded song is chosen, else background
+  if ((+settings.track || 1) === 3 && !customFailed) beginLeadIn();
+  else { perfMode = 'bg'; playIdx(bgIdx); }
 }
 function duck(on){ if(!musicGain) return; const t=AC.currentTime, target = !settings.music ? 0 : on ? .14 : .5; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(target,t+1.1); }
 let haloPulse=0;
@@ -269,6 +293,7 @@ function connect(){
       case 'bell': bell(true); break;
       case 'intro': playIntro(); break;
       case 'timeline': songTimeline = m.segments; break;
+      case 'newsong': beginLeadIn(); break;
       case 'mo1': mo(); break;
     }
   };
@@ -279,7 +304,10 @@ function applySettings(){
   duck(false); scheduleMo();
   if ((+settings.track || 1) === 3) customFailed = false;   // a fresh upload (or re-pick) retries the custom song
   const want = Math.max(0, Math.min(2, (+settings.track || 1) - 1));
-  if (AC && want !== ((trackIdx - 1 + TRACKS.length) % TRACKS.length)) { trackIdx = want; nextTrack(); }
+  if (AC && !introActive) {
+    if (want === 2) { if (perfMode === 'bg') beginLeadIn(); }   // the uploaded song was picked from background: start the performance
+    else if (perfMode !== 'bg' || curIdx !== want) { clearTimeout(perfTimer); perfMode = 'bg'; bgIdx = want; playIdx(want); }
+  }
 }
 connect();
 
@@ -360,8 +388,8 @@ function frame(now){
   // performer
   for (const tc of TEACHERS){ if (tc.master){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.35+.1*Math.sin(t*1.5); ctx.strokeStyle='#ff5ad2'; ctx.lineWidth=9; ctx.shadowColor='#ff2e88'; ctx.shadowBlur=26; ctx.beginPath(); ctx.ellipse(tc.x,tc.y-120,112,56,0,0,6.29); ctx.stroke(); ctx.restore(); }
     // duo pair fixed inside the neon circle (disc centre ~507,980)
-    if (settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-50,.66,'gold'); }
-    else { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-50,tc.s,'gold'); } }
+    if (perfMode === 'perf' && settings.performer==='duo'){ const dp=duetPoses(); drawSinger(450, 1005, .60, A['performer_male_'+dp[0]]||A.performer_male, dp[0], 0, t); drawSinger(564, 1005, .60, A['performer_female_'+dp[1]]||A.performer_female, dp[1], 1.9, t); tag(tc.name,507,1005-.60*260-50,.66,'gold'); }
+    else if (perfMode === 'perf') { const ph=songPhase(), g=settings.performer==='male'?'male':'female'; drawSinger(tc.x, tc.y, tc.s, A['performer_'+g+'_'+ph]||A['performer_'+g], ph, 0, t); tag(tc.name,tc.x,tc.y-tc.s*260-50,tc.s,'gold'); } }
   // visitors back to front
   const bubbles=[];
   const list=[...visitors.values()].sort((a,b)=>a.y-b.y);
