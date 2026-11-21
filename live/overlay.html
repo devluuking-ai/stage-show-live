@@ -34,10 +34,10 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
 .dot{width:18px;height:18px;border-radius:50%;background:#46d36b;box-shadow:0 0 12px #46d36b}
 /* side cards */
 .card{background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:18px 22px;font-size:25px;line-height:1.4;backdrop-filter:blur(4px)}
-#guide{left:24px;top:630px;width:290px}
+#guide{left:calc(24px + var(--cropX,0px));top:630px;width:290px}
 #guide div+div{border-top:1px solid rgba(255,120,190,.3);margin-top:10px;padding-top:10px}
 #guide b{color:var(--gold2)}
-#merit{right:24px;top:630px;width:290px;text-align:center}
+#merit{right:calc(24px + var(--cropX,0px));top:630px;width:290px;text-align:center}
 #merit h3{margin:0 0 8px;font-family:var(--display);font-size:30px;color:var(--gold2);letter-spacing:.06em}
 #merit ol{margin:0;padding:0;list-style:none;text-align:left;display:grid;gap:6px}
 #merit li{display:flex;justify-content:space-between;gap:10px}
@@ -59,7 +59,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
 #gift .pray{font-family:var(--display);font-style:italic;font-size:32px;color:var(--fg);margin-top:12px;opacity:.95}
 /* enable sound (needed once: browsers block autoplay) */
 #unmute{position:absolute;z-index:9;left:50%;top:1540px;transform:translateX(-50%);font:600 36px var(--body);padding:22px 44px;border-radius:24px;border:3px solid var(--gold2);background:linear-gradient(135deg,#ff2e88,#7c3aed);color:#fff;cursor:pointer}
-#conn{position:absolute;z-index:4;right:16px;bottom:12px;font-size:20px;color:var(--muted);opacity:.6}
+#conn{position:absolute;z-index:4;right:calc(16px + var(--cropX,0px));bottom:12px;font-size:20px;color:var(--muted);opacity:.6}
+#fsBtn{position:fixed;left:10px;bottom:10px;z-index:99;opacity:.45;background:rgba(20,8,34,.85);border:1px solid var(--line);border-radius:12px;color:#fff;font-size:22px;padding:8px 13px;cursor:pointer}
 @media (prefers-reduced-motion:reduce){#chant,#gift{transition:none}}
 </style>
 </head>
@@ -82,12 +83,15 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
   <button id="unmute">🔔 အသံဖွင့်ရန် နှိပ်ပါ</button>
   <div id="conn">ချိတ်ဆက်နေသည်…</div>
 </div></div>
+<button id="fsBtn" title="Fullscreen">⛶</button>
 
 <script>
 /* ======================= stage fit ======================= */
 const stage = document.getElementById('stage');
-function fit(){ const s = Math.min(innerWidth/1080, innerHeight/1920); stage.style.transform = `translate(-50%,-50%) scale(${s})`; }
-addEventListener('resize', fit); fit();
+function fit(){ const s = Math.max(innerWidth/1080, innerHeight/1920); stage.style.transform = `translate(-50%,-50%) scale(${s})`; stage.style.setProperty('--cropX', Math.max(0, (1080*s - innerWidth)/2/s) + 'px'); }
+addEventListener('resize', fit); document.addEventListener('fullscreenchange', fit); fit();
+function goFullscreen(){ try { const p = document.documentElement.requestFullscreen(); if (p && p.then) p.then(() => { try { const l = screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait'); if (l && l.catch) l.catch(()=>{}); } catch(_){} }).catch(()=>{}); } catch(_){} }
+document.getElementById('fsBtn').onclick = () => goFullscreen();
 
 /* ======================= assets ======================= */
 const A = {};
@@ -171,7 +175,7 @@ function showChant(text){ document.getElementById('chantText').textContent=text;
 /* ======================= audio ======================= */
 let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:false, moBpm:52, performer:'female', track:1, duoSync:'auto', duoFirst:'male', duoTurn:15, duoDelay:0 };
 const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3','/assets/music/custom.mp3']; let trackIdx=0, musicEl=null;
-document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); };
+document.getElementById('unmute').onclick = e => { e.currentTarget.remove(); startAudio(); goFullscreen(); };
 function startAudio(){
   AC = new (window.AudioContext||window.webkitAudioContext)();
   master = AC.createGain(); master.gain.value=.9;
